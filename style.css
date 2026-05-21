@@ -1067,7 +1067,7 @@ ng-top: 24px; }
 }
 .nv-checkout-title .italic { font-style: italic; color: var(--nvee-blue-electric); }
 .nv-checkout-sub {
-  color: var(--nvee-text-dim);
+  color: #b9c2d4;
   font-size: 15px;
   line-height: 1.6;
   margin: 0 0 36px;
@@ -1080,18 +1080,18 @@ ng-top: 24px; }
   gap: 28px;
 }
 .nv-section {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(0, 180, 255, 0.15);
   border-radius: 16px;
-  padding: 20px 22px;
+  padding: 22px 24px;
 }
 .nv-section-label {
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--nvee-text-dim);
-  margin-bottom: 14px;
-  font-weight: 600;
+  color: var(--nvee-blue-electric);
+  margin-bottom: 16px;
+  font-weight: 700;
 }
 
 .nv-checkout-error {

@@ -288,30 +288,35 @@ function mountStripeElements(clientSecret) {
     variables: {
       colorPrimary: '#00b4ff',
       colorBackground: '#0f1424',
-      colorText: '#e8ecf4',
-      colorTextSecondary: '#8a93a8',
-      colorTextPlaceholder: '#5a6378',
+      colorText: '#ffffff',
+      colorTextSecondary: '#cfd6e3',
+      colorTextPlaceholder: '#8a93a8',
       colorDanger: '#ff4d5e',
       colorSuccess: '#4ade80',
       fontFamily: 'Inter, system-ui, sans-serif',
       fontSizeBase: '15px',
+      fontWeightNormal: '500',
       spacingUnit: '4px',
       borderRadius: '10px',
     },
     rules: {
       '.Input': {
-        backgroundColor: '#161a2b',
-        border: '1px solid rgba(0, 180, 255, 0.18)',
+        backgroundColor: '#1a2138',
+        color: '#ffffff',
+        border: '1px solid rgba(0, 180, 255, 0.22)',
         boxShadow: 'none',
+      },
+      '.Input::placeholder': {
+        color: '#8a93a8',
       },
       '.Input:focus': {
         border: '1px solid #00b4ff',
         boxShadow: '0 0 0 3px rgba(0, 180, 255, 0.15)',
       },
       '.Label': {
-        fontWeight: '500',
+        fontWeight: '600',
         fontSize: '13px',
-        color: '#8a93a8',
+        color: '#cfd6e3',
         letterSpacing: '0.02em',
       },
       '.Tab': {
