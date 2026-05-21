@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+netlify/functions/node_modules/
+
+# Local env (never commit Stripe keys)
+.env
+.env.local
+.env.*.local
+
+# Netlify
+.netlify/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
+
+# Dev/preview screenshots from earlier design iterations.
+# Real product images live in images/ — these are at the project root
+# and were used as references. They should stay on disk but not be deployed
+# or pushed to GitHub (they'd be publicly accessible by URL).
+/anim-*.png
+/contact-*.png
+/final-*.png
+/final2-*.png
+/final3-*.png
+/final4-*.png
+/mobile-*.png
+/preview-*.png
+/test-*.png
+/swirl-direct-test.png
+/swirl-test*.png
+/v[0-9]*-*.png

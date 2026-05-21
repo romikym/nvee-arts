@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thank you — NVee Arts</title>
+<meta name="description" content="Your order is confirmed. Veronica will ship from North Hollywood within 2–3 business days." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .thanks-wrap {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 40px 20px;
+    background: var(--nvee-dark, #050810);
+    color: var(--nvee-text, #f5f5f7);
+  }
+  .thanks-card {
+    max-width: 560px;
+    width: 100%;
+    text-align: center;
+    padding: 48px 32px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .thanks-icon {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    margin: 0 auto 24px;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    color: #fff;
+  }
+  .thanks-card h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 44px;
+    margin: 0 0 12px;
+    line-height: 1.1;
+  }
+  .thanks-card .italic { font-style: italic; }
+  .thanks-card p {
+    color: rgba(255,255,255,0.7);
+    line-height: 1.6;
+    margin: 0 0 14px;
+  }
+  .order-id {
+    display: inline-block;
+    margin: 12px 0 24px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 14px;
+  }
+  .thanks-actions {
+    display: flex; gap: 12px; justify-content: center;
+    margin-top: 28px; flex-wrap: wrap;
+  }
+  .thanks-actions a {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+    transition: transform .15s ease;
+  }
+  .thanks-actions a:hover { transform: translateY(-1px); }
+  .thanks-primary {
+    background: #fff;
+    color: #050810;
+  }
+  .thanks-ghost {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+</style>
+</head>
+<body>
+<div class="thanks-wrap">
+  <div class="thanks-card">
+    <div class="thanks-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h1>Order <span class="italic">confirmed.</span></h1>
+    <p>Thank you for collecting an original NVee piece.</p>
+    <p>A receipt has been emailed to you by Stripe. Veronica will ship from North Hollywood within <strong>2–3 business days</strong> and email you a tracking number.</p>
+    <div class="order-id" id="order-id">Order: —</div>
+    <p style="font-size: 14px;">Questions about your order? Email <a href="mailto:desioveronica11@gmail.com" style="color: #fff;">desioveronica11@gmail.com</a>.</p>
+    <div class="thanks-actions">
+      <a href="/" class="thanks-primary">Back to shop</a>
+      <a href="https://instagram.com/nveearts" target="_blank" rel="noopener" class="thanks-ghost">Follow on Instagram</a>
+    </div>
+  </div>
+</div>
+<script>
+  // Show the Stripe session ID (acts as the order reference).
+  const params = new URLSearchParams(location.search);
+  const id = params.get('session_id');
+  if (id) {
+    document.getElementById('order-id').textContent = 'Order: ' + id.slice(-12).toUpperCase();
+  }
+  // Clear cart now that payment is confirmed.
+  try {
+    sessionStorage.removeItem('nvee-checkout-pending');
+    localStorage.removeItem('nvee-cart');
+  } catch (e) {}
+</script>
+</body>
+</html>

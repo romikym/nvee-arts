@@ -1,0 +1,25 @@
+# Netlify configuration for NVee Arts.
+#
+# Deploys the static site from the repository root and bundles serverless
+# functions out of netlify/functions/. Stripe Checkout is created by
+# /.netlify/functions/create-checkout-session.
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  # esbuild is faster and produces smaller bundles than the default zisi.
+  node_bundler = "esbuild"
+  # Include products.json in the function bundle so the function can
+  # validate prices server-side.
+  included_files = ["data/products.json"]
+
+# Tidy URL for the checkout endpoint (optional — the default
+# /.netlify/functions/create-checkout-session also works).
+[[redirects]]
+  from = "/api/checkout"
+  to = "/.netlify/functions/create-checkout-session"
+  status = 200
+
+# SPA-style fallback is not needed — this is a multi-page static site.
