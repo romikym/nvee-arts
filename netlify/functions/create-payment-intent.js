@@ -121,7 +121,12 @@ exports.handler = async (event) => {
     const intent = await stripe.paymentIntents.create({
       amount: totalCents,
       currency: 'usd',
-      automatic_payment_methods: { enabled: true },
+      // Lock the checkout to card payments only.
+      // Apple Pay, Google Pay, and Link still show because they're
+      // card-based wallets — surfaced automatically by the Payment
+      // Element when `card` is allowed. This explicitly excludes
+      // Alipay, ACH/US bank account, Klarna, Afterpay, etc.
+      payment_method_types: ['card'],
       shipping: undefined, // collected via the Address Element on the client
       metadata: {
         cart_ids: items.map((i) => i.id).join(','),
