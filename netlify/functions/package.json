@@ -1,9 +1,3 @@
 {
-  "name": "nvee-arts-functions",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Serverless functions for NVee Arts (Stripe checkout).",
-  "dependencies": {
-    "stripe": "^16.12.0"
-  }
+  "private": true
 }
