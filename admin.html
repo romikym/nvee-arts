@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — NVee Arts</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+
+<!-- LOGIN SCREEN -->
+<div class="admin-login-screen" id="admin-login-screen">
+  <div class="admin-login-card">
+    <div class="admin-login-brand">
+      <span class="brand-logo"><span>NV</span></span>
+      <span class="admin-login-brand-text">NVee Arts <span class="italic">admin.</span></span>
+    </div>
+    <p class="admin-login-sub">Sign in to manage orders, customers, and invoices.</p>
+    <form id="admin-login-form" class="admin-login-form">
+      <div class="field">
+        <label for="admin-pw">Password</label>
+        <input type="password" id="admin-pw" autocomplete="current-password" required />
+        <span class="admin-login-error" id="admin-login-error"></span>
+      </div>
+      <button type="submit" class="btn btn-primary admin-login-btn" id="admin-login-btn">
+        <span class="admin-login-label">Sign in →</span>
+        <span class="admin-login-spinner" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="9" stroke-opacity="0.3"/>
+            <path d="M21 12a9 9 0 0 0-9-9"/>
+          </svg>
+        </span>
+      </button>
+    </form>
+    <p class="admin-login-footer">
+      Need help? See <a href="/SETUP.md">SETUP.md</a> · <a href="/">Back to shop</a>
+    </p>
+  </div>
+</div>
+
+<!-- ADMIN SHELL -->
+<div class="admin-shell" id="admin-shell" hidden>
+
+  <header class="admin-nav">
+    <a href="#" class="brand admin-brand">
+      <span class="brand-logo"><span>NV</span></span>
+      <span class="admin-brand-text">Admin</span>
+    </a>
+    <nav class="admin-tabs">
+      <button class="admin-tab active" data-tab="orders">Orders</button>
+      <button class="admin-tab" data-tab="customers">Customers</button>
+      <button class="admin-tab" data-tab="invoices">Invoices</button>
+    </nav>
+    <div class="admin-nav-actions">
+      <a href="/" class="admin-nav-link">View shop ↗</a>
+      <button class="admin-logout" id="admin-logout">Sign out</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <!-- ORDERS TAB -->
+    <section class="admin-panel" id="panel-orders">
+      <div class="admin-panel-header">
+        <div>
+          <div class="admin-eyebrow">Orders</div>
+          <h1 class="admin-title">Recent <span class="italic">orders.</span></h1>
+        </div>
+        <div class="admin-panel-stats" id="orders-stats">
+          <div class="admin-stat"><div class="admin-stat-num" id="orders-count">—</div><div class="admin-stat-label">orders</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" id="orders-revenue">—</div><div class="admin-stat-label">revenue</div></div>
+        </div>
+      </div>
+      <div class="admin-loading" id="orders-loading">Loading orders…</div>
+      <div class="admin-empty" id="orders-empty" hidden>No orders yet. When buyers complete checkout they'll show up here.</div>
+      <div class="admin-list" id="orders-list"></div>
+    </section>
+
+    <!-- CUSTOMERS TAB -->
+    <section class="admin-panel" id="panel-customers" hidden>
+      <div class="admin-panel-header">
+        <div>
+          <div class="admin-eyebrow">Customers</div>
+          <h1 class="admin-title">People who <span class="italic">collected.</span></h1>
+        </div>
+        <div class="admin-panel-stats">
+          <div class="admin-stat"><div class="admin-stat-num" id="customers-count">—</div><div class="admin-stat-label">unique buyers</div></div>
+        </div>
+      </div>
+      <div class="admin-loading" id="customers-loading">Loading customers…</div>
+      <div class="admin-empty" id="customers-empty" hidden>No customers yet.</div>
+      <div class="admin-list" id="customers-list"></div>
+    </section>
+
+    <!-- INVOICES TAB -->
+    <section class="admin-panel" id="panel-invoices" hidden>
+      <div class="admin-panel-header">
+        <div>
+          <div class="admin-eyebrow">Invoices</div>
+          <h1 class="admin-title">Send a custom <span class="italic">invoice.</span></h1>
+        </div>
+        <button class="btn btn-primary admin-new-invoice-btn" id="open-new-invoice">+ New invoice</button>
+      </div>
+
+      <!-- New invoice form (collapsed by default) -->
+      <div class="admin-new-invoice" id="new-invoice-card" hidden>
+        <h3>Create + send invoice</h3>
+        <p class="admin-help">Use this for commissions, custom prices, or anything outside the shop. Stripe will email the buyer a hosted invoice they can pay with a card.</p>
+        <form id="new-invoice-form" class="admin-form">
+          <div class="field-row">
+            <div class="field">
+              <label>Customer email *</label>
+              <input type="email" id="inv-email" placeholder="buyer@example.com" required />
+            </div>
+            <div class="field">
+              <label>Customer name <span class="field-optional">(optional)</span></label>
+              <input type="text" id="inv-name" placeholder="Jane Smith" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Description *</label>
+            <input type="text" id="inv-description" placeholder="Custom commission — 16×20 fluid art on canvas" required />
+          </div>
+          <div class="field">
+            <label>Amount (USD) *</label>
+            <input type="number" id="inv-amount" min="1" step="0.01" placeholder="250.00" required />
+          </div>
+          <div class="field-row">
+            <label class="admin-checkbox">
+              <input type="checkbox" id="inv-send-now" checked />
+              <span>Email the invoice immediately</span>
+            </label>
+          </div>
+          <div class="admin-form-actions">
+            <button type="button" class="btn btn-ghost" id="cancel-new-invoice">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="submit-new-invoice">Create + send</button>
+          </div>
+          <div class="admin-form-error" id="inv-error" role="alert"></div>
+          <div class="admin-form-success" id="inv-success" hidden></div>
+        </form>
+      </div>
+
+      <div class="admin-loading" id="invoices-loading">Loading invoices…</div>
+      <div class="admin-empty" id="invoices-empty" hidden>No invoices yet. Click "+ New invoice" to send one.</div>
+      <div class="admin-list" id="invoices-list"></div>
+    </section>
+
+  </main>
+
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>

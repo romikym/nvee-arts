@@ -143,6 +143,78 @@ usually means the access key is missing or wrong.
 
 ---
 
+## 9. Set up the admin dashboard
+
+A private admin page at `/admin` lets Veronica manage orders, customers, and
+invoices without ever opening Stripe directly. (She can still open Stripe for
+the things Stripe does better — refunds, disputes, payouts.)
+
+The admin is password-protected with a single shared password. Auth uses a
+custom JWT signed with a secret you'll generate once.
+
+### Generate the JWT secret
+
+You need a random string for signing the session tokens. Pick any of these:
+
+- **Easy:** open a terminal and run
+  ```
+  node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+  ```
+  Copy the output.
+- **Easier:** any random password generator (1Password, Bitwarden, etc.) of
+  at least 32 characters.
+
+This isn't a password anyone needs to remember — it just needs to be long and
+secret. Don't reuse another password for this.
+
+### Add the two env vars to Netlify
+
+Netlify → Site configuration → Environment variables → **Add a variable**:
+
+| Key | Value |
+|-----|-------|
+| `ADMIN_PASSWORD` | The password Veronica will type to log in. Pick something memorable but not weak. |
+| `ADMIN_JWT_SECRET` | The long random string from above. |
+
+Save, then **Deploys → Trigger deploy → Deploy site** for the new vars to
+take effect.
+
+### Use the admin
+
+1. Open `https://YOUR-SITE.netlify.app/admin`
+2. Enter the password. You're in for 12 hours (then it'll ask you to sign
+   in again).
+3. Three tabs:
+   - **Orders** — every paid order with buyer name, shipping address, items,
+     amount, payment method, and links to the Stripe receipt and the order's
+     page in the Stripe dashboard.
+   - **Customers** — everyone who's ever bought, with total spent and last
+     order date.
+   - **Invoices** — list of existing Stripe invoices, plus a form to create
+     and send a new one. Use this for commissions, custom prices, or
+     anything outside the regular shop. Stripe emails the buyer a hosted
+     invoice page they pay with a card.
+
+To sign out, hit the "Sign out" button (top right). For day-to-day Stripe
+operations not covered here (refunds, disputes, payouts), each order has an
+"Open in Stripe ↗" link that jumps straight to the right page in the Stripe
+dashboard.
+
+### Security notes
+
+- The password is stored in plain text as a Netlify env var. That's fine for
+  this scale — Netlify env vars are encrypted at rest and only visible to
+  site owners. Don't put this in code.
+- The JWT secret is what stops someone from forging admin tokens. Rotate it
+  if you ever suspect it's leaked (just generate a new one and update the
+  env var — existing sessions will be invalidated).
+- Sessions expire after 12 hours. To change that, edit the `exp` value in
+  `netlify/functions/admin-login.js`.
+- There's no `/admin` link from the public site by design — Veronica just
+  bookmarks the URL.
+
+---
+
 ## Day-to-day operations
 
 ### When a piece sells
