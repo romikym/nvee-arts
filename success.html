@@ -102,13 +102,19 @@
   </div>
 </div>
 <script>
-  // Show the Stripe session ID (acts as the order reference).
+  // After Stripe Elements confirms a payment, Stripe redirects here with
+  // `payment_intent` and `payment_intent_client_secret` in the URL. The
+  // older redirect-based Checkout used `session_id`. We support both.
   const params = new URLSearchParams(location.search);
-  const id = params.get('session_id');
-  if (id) {
-    document.getElementById('order-id').textContent = 'Order: ' + id.slice(-12).toUpperCase();
+  const sessionId = params.get('session_id');
+  const paymentIntent = params.get('payment_intent');
+  const idForDisplay = paymentIntent || sessionId;
+  if (idForDisplay) {
+    document.getElementById('order-id').textContent =
+      'Order: ' + idForDisplay.slice(-12).toUpperCase();
   }
-  // Clear cart now that payment is confirmed.
+
+  // Clear any pending-checkout flag and cart state.
   try {
     sessionStorage.removeItem('nvee-checkout-pending');
     localStorage.removeItem('nvee-cart');

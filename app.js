@@ -178,48 +178,245 @@ function closeProductModal() {
   }
 }
 
-// CHECKOUT
-// ============ CHECKOUT (Stripe Hosted) ============
-// Stripe collects email, shipping address, and payment on its hosted page.
-// We just POST the cart to our serverless function, get a session URL, and redirect.
+// ============ CHECKOUT (Stripe Elements — on-site, NVee-branded) ============
+// We render a full-screen branded overlay on the NVee site itself, and embed
+// Stripe Elements (Link auth + Address + Payment) inside it. The buyer never
+// leaves NVee until Stripe redirects them to /success.html after payment.
+
+const nvCheckout = {
+  stripe: null,       // Stripe.js instance
+  elements: null,     // Elements group
+  paymentElement: null,
+  addressElement: null,
+  linkAuthElement: null,
+  clientSecret: null,
+  total: 0,           // in cents
+  email: '',
+};
 
 async function startCheckout() {
-  const btn = document.getElementById('open-checkout');
-  if (!btn || cart.size === 0) return;
-  const originalLabel = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Connecting to Stripe…';
+  const cartBtn = document.getElementById('open-checkout');
+  if (!cartBtn || cart.size === 0) return;
+
+  const originalLabel = cartBtn.textContent;
+  cartBtn.disabled = true;
+  cartBtn.textContent = 'Opening checkout…';
+
   try {
+    if (typeof Stripe === 'undefined') {
+      throw new Error('Stripe.js failed to load — check internet connection.');
+    }
+
+    // 1. Create PaymentIntent on the server.
     const items = cartLines().map(l => ({ id: l.id, quantity: l.qty }));
-    const res = await fetch('/.netlify/functions/create-checkout-session', {
+    const res = await fetch('/.netlify/functions/create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
     });
     if (!res.ok) {
       const detail = await res.text();
-      throw new Error('Checkout failed: ' + res.status + ' ' + detail);
+      throw new Error('Checkout init failed: ' + res.status + ' ' + detail);
     }
     const data = await res.json();
-    if (!data.url) throw new Error('No checkout URL returned');
-    // Persist cart so we can clear it after Stripe confirms success.
-    try { sessionStorage.setItem('nvee-checkout-pending', '1'); } catch (e) {}
-    window.location.href = data.url;
+    if (!data.clientSecret || !data.publishableKey) {
+      throw new Error('Server response missing required fields');
+    }
+
+    nvCheckout.clientSecret = data.clientSecret;
+    nvCheckout.total = data.amount;
+
+    // 2. Initialize Stripe.js with the publishable key returned from server.
+    if (!nvCheckout.stripe) {
+      nvCheckout.stripe = Stripe(data.publishableKey);
+    }
+
+    // 3. Render the order summary in the overlay.
+    renderNVCheckoutSummary(data.breakdown);
+
+    // 4. Mount Stripe Elements.
+    mountStripeElements(data.clientSecret);
+
+    // 5. Open the overlay.
+    openNVCheckout();
   } catch (err) {
     console.error(err);
-    showToast('Checkout error', 'Could not reach Stripe. Please try again or email Veronica.');
-    btn.disabled = false;
-    btn.textContent = originalLabel;
+    showToast('Checkout error', err.message || 'Could not start checkout. Please try again.');
+  } finally {
+    cartBtn.disabled = false;
+    cartBtn.textContent = originalLabel;
   }
 }
 
-// Stripe redirects back to success.html on success or to index.html?canceled=1 on cancel.
-// Detect both on page load.
+function renderNVCheckoutSummary(breakdown) {
+  const itemsEl = document.getElementById('nv-summary-items');
+  const lines = breakdown.lines;
+  itemsEl.innerHTML = lines.map(l => {
+    const product = getProduct(l.id) || {};
+    return `
+      <div class="nv-summary-item">
+        <div class="nv-summary-item-img"><img src="${product.image || ''}" alt=""></div>
+        <div class="nv-summary-item-body">
+          <div class="nv-summary-item-meta">${product.meta || ''}</div>
+          <div class="nv-summary-item-name">${l.name}</div>
+          <div class="nv-summary-item-price">${fmt(l.price)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('nv-summary-count').textContent =
+    `${lines.length} piece${lines.length !== 1 ? 's' : ''}`;
+  document.getElementById('nv-summary-subtotal').textContent = fmt(breakdown.subtotalCents / 100);
+  document.getElementById('nv-summary-shipping').textContent = fmt(breakdown.shippingCents / 100);
+  document.getElementById('nv-summary-total').textContent = fmt(breakdown.totalCents / 100);
+  document.getElementById('nv-pay-amount').textContent = fmt(breakdown.totalCents / 100);
+}
+
+function mountStripeElements(clientSecret) {
+  // Tear down any prior Elements (in case user re-opens checkout).
+  if (nvCheckout.elements) {
+    try {
+      nvCheckout.paymentElement && nvCheckout.paymentElement.unmount();
+      nvCheckout.addressElement && nvCheckout.addressElement.unmount();
+      nvCheckout.linkAuthElement && nvCheckout.linkAuthElement.unmount();
+    } catch (e) { /* ignore */ }
+  }
+
+  // Theme Stripe Elements to match the NVee dark palette.
+  const appearance = {
+    theme: 'night',
+    variables: {
+      colorPrimary: '#00b4ff',
+      colorBackground: '#0f1424',
+      colorText: '#e8ecf4',
+      colorTextSecondary: '#8a93a8',
+      colorTextPlaceholder: '#5a6378',
+      colorDanger: '#ff4d5e',
+      colorSuccess: '#4ade80',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSizeBase: '15px',
+      spacingUnit: '4px',
+      borderRadius: '10px',
+    },
+    rules: {
+      '.Input': {
+        backgroundColor: '#161a2b',
+        border: '1px solid rgba(0, 180, 255, 0.18)',
+        boxShadow: 'none',
+      },
+      '.Input:focus': {
+        border: '1px solid #00b4ff',
+        boxShadow: '0 0 0 3px rgba(0, 180, 255, 0.15)',
+      },
+      '.Label': {
+        fontWeight: '500',
+        fontSize: '13px',
+        color: '#8a93a8',
+        letterSpacing: '0.02em',
+      },
+      '.Tab': {
+        backgroundColor: '#161a2b',
+        border: '1px solid rgba(0, 180, 255, 0.18)',
+      },
+      '.Tab--selected': {
+        border: '1px solid #00b4ff',
+        backgroundColor: 'rgba(0, 180, 255, 0.08)',
+      },
+    },
+  };
+
+  nvCheckout.elements = nvCheckout.stripe.elements({
+    clientSecret,
+    appearance,
+    loader: 'auto',
+  });
+
+  // Link Authentication — Stripe's accelerated email entry / Link login.
+  nvCheckout.linkAuthElement = nvCheckout.elements.create('linkAuthentication');
+  nvCheckout.linkAuthElement.mount('#nv-link-element');
+  nvCheckout.linkAuthElement.on('change', (event) => {
+    nvCheckout.email = event.value.email;
+  });
+
+  // Address Element (shipping).
+  nvCheckout.addressElement = nvCheckout.elements.create('address', {
+    mode: 'shipping',
+    allowedCountries: ['US'],
+    fields: { phone: 'always' },
+    validation: { phone: { required: 'always' } },
+  });
+  nvCheckout.addressElement.mount('#nv-address-element');
+
+  // Payment Element — handles cards, Apple Pay, Google Pay, Link.
+  nvCheckout.paymentElement = nvCheckout.elements.create('payment', {
+    layout: 'tabs',
+  });
+  nvCheckout.paymentElement.mount('#nv-payment-element');
+
+  // Enable Pay button once Elements are ready.
+  nvCheckout.paymentElement.on('ready', () => {
+    document.getElementById('nv-pay-btn').disabled = false;
+  });
+  nvCheckout.paymentElement.on('change', (event) => {
+    setNVCheckoutError(event.error ? event.error.message : '');
+  });
+}
+
+function openNVCheckout() {
+  const overlay = document.getElementById('nv-checkout');
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('no-scroll');
+  closeCart();
+  // Scroll to top of overlay
+  overlay.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function closeNVCheckout() {
+  const overlay = document.getElementById('nv-checkout');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('no-scroll');
+}
+
+function setNVCheckoutError(message) {
+  const el = document.getElementById('nv-checkout-error');
+  el.textContent = message || '';
+  el.classList.toggle('visible', !!message);
+}
+
+async function nvSubmitPayment(e) {
+  e.preventDefault();
+  if (!nvCheckout.stripe || !nvCheckout.elements) return;
+
+  const btn = document.getElementById('nv-pay-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  setNVCheckoutError('');
+
+  const { error } = await nvCheckout.stripe.confirmPayment({
+    elements: nvCheckout.elements,
+    confirmParams: {
+      return_url: window.location.origin + '/success.html',
+      receipt_email: nvCheckout.email || undefined,
+    },
+  });
+
+  // If confirmPayment returned here, payment did NOT succeed — Stripe always
+  // redirects on success. So `error` is populated.
+  if (error) {
+    setNVCheckoutError(error.message || 'Payment failed. Please try again.');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+// Stripe redirects back to /?canceled=1 in the OLD hosted-checkout flow.
+// Keep this for backward compatibility (and for any returning bookmarks).
 function handleStripeReturn() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('canceled') === '1') {
     showToast('Checkout canceled', 'Your cart is still saved.');
-    // Clean the URL
     window.history.replaceState({}, '', window.location.pathname + window.location.hash);
   }
 }
@@ -247,6 +444,18 @@ async function init() {
   $('#backdrop').addEventListener('click', () => { closeCart(); closeProductModal(); });
   $('#open-checkout').addEventListener('click', startCheckout);
   handleStripeReturn();
+
+  // Branded checkout overlay wiring
+  const nvCheckoutClose = document.getElementById('nv-checkout-close');
+  if (nvCheckoutClose) nvCheckoutClose.addEventListener('click', closeNVCheckout);
+  const nvCheckoutForm = document.getElementById('nv-checkout-form');
+  if (nvCheckoutForm) nvCheckoutForm.addEventListener('submit', nvSubmitPayment);
+  // Escape closes the checkout overlay too
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('nv-checkout')?.classList.contains('open')) {
+      closeNVCheckout();
+    }
+  });
   $('#filter-row').addEventListener('click', e => {
     const pill = e.target.closest('.filter-pill');
     if (pill) setFilter(pill.dataset.filter);
@@ -271,7 +480,6 @@ async function init() {
     e.target.querySelector('button').textContent = 'Subscribed ✓';
   });
 
-  // Contact form
   const contactForm = $('#contact-form');
   if (contactForm) {
     contactForm.addEventListener('submit', e => {

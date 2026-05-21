@@ -981,3 +981,298 @@ ng-top: 24px; }
   .brand-logo { width: 120px !important; height: 48px !important; }
   .mobile-menu-links a { font-size: 24px !important; padding: 16px 4px !important; }
 }
+
+/* ============================================================
+   BRANDED CHECKOUT OVERLAY (Stripe Elements)
+   ============================================================ */
+
+.nv-checkout {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  overflow-y: auto;
+  background: var(--nvee-black);
+  color: var(--nvee-text);
+}
+.nv-checkout.open { display: block; }
+.nv-checkout-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(0, 180, 255, 0.18), transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(0, 119, 194, 0.22), transparent 50%),
+    linear-gradient(180deg, var(--nvee-black) 0%, var(--nvee-dark) 100%);
+  z-index: 0;
+}
+.nv-checkout-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 28px 64px;
+}
+
+.nv-checkout-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 32px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--nvee-line);
+}
+.nv-checkout-close {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--nvee-line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nvee-text);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.nv-checkout-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--nvee-blue);
+}
+
+.nv-checkout-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 56px;
+  align-items: start;
+}
+
+/* LEFT — payment form */
+.nv-checkout-left { min-width: 0; }
+.nv-checkout-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--nvee-blue-electric);
+  margin-bottom: 16px;
+  padding: 6px 12px;
+  border: 1px solid var(--nvee-line);
+  border-radius: 999px;
+  background: rgba(0, 180, 255, 0.06);
+}
+.nv-checkout-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 56px;
+  line-height: 1.05;
+  margin: 0 0 16px;
+  font-weight: 700;
+}
+.nv-checkout-title .italic { font-style: italic; color: var(--nvee-blue-electric); }
+.nv-checkout-sub {
+  color: var(--nvee-text-dim);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 36px;
+  max-width: 540px;
+}
+
+.nv-checkout-form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.nv-section {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 20px 22px;
+}
+.nv-section-label {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nvee-text-dim);
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.nv-checkout-error {
+  min-height: 0;
+  color: var(--nvee-accent-red);
+  font-size: 14px;
+  padding: 0;
+  border-radius: 10px;
+  transition: all .2s ease;
+}
+.nv-checkout-error.visible {
+  padding: 12px 16px;
+  background: rgba(255, 77, 94, 0.08);
+  border: 1px solid rgba(255, 77, 94, 0.25);
+}
+
+.nv-pay-btn {
+  margin-top: 8px;
+  padding: 18px 28px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #050810;
+  background: linear-gradient(135deg, #4fd6ff 0%, #00b4ff 50%, #0077c2 100%);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all .2s ease;
+  box-shadow: 0 10px 30px rgba(0, 180, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.nv-pay-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(0, 180, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.nv-pay-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.nv-pay-btn.loading .nv-pay-label { display: none; }
+.nv-pay-btn.loading .nv-pay-spinner { display: inline-flex !important; }
+.nv-pay-spinner { display: none; }
+.nv-pay-spinner svg { animation: nv-spin 0.8s linear infinite; }
+@keyframes nv-spin { to { transform: rotate(360deg); } }
+
+.nv-trust-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--nvee-text-dim);
+}
+.nv-trust-row > div {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* RIGHT — order summary */
+.nv-checkout-right {
+  position: sticky;
+  top: 32px;
+}
+.nv-summary {
+  background:
+    linear-gradient(135deg, rgba(0, 180, 255, 0.05), rgba(0, 119, 194, 0.02));
+  border: 1px solid var(--nvee-line);
+  border-radius: 20px;
+  padding: 28px;
+  backdrop-filter: blur(12px);
+}
+.nv-summary-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--nvee-line);
+}
+.nv-summary-eyebrow {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  font-style: italic;
+}
+.nv-summary-count {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nvee-text-dim);
+}
+.nv-summary-items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.nv-summary-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.nv-summary-item-img {
+  width: 64px; height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--nvee-graphite);
+  flex-shrink: 0;
+}
+.nv-summary-item-img img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.nv-summary-item-body { flex: 1; min-width: 0; }
+.nv-summary-item-meta {
+  font-size: 11px;
+  color: var(--nvee-text-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.nv-summary-item-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 2px 0;
+}
+.nv-summary-item-price {
+  font-size: 13px;
+  color: var(--nvee-blue-electric);
+}
+.nv-summary-totals {
+  padding-top: 16px;
+  border-top: 1px solid var(--nvee-line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nv-summary-row {
+  display: flex; justify-content: space-between;
+  font-size: 14px;
+  color: var(--nvee-text-dim);
+}
+.nv-summary-row.nv-summary-total {
+  font-size: 20px;
+  color: var(--nvee-text);
+  font-weight: 700;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--nvee-line);
+}
+.nv-summary-note {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--nvee-text-dim);
+  text-align: center;
+  padding: 10px;
+  background: rgba(0, 180, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid var(--nvee-line);
+}
+
+/* Override Stripe Element wrapper backgrounds — Elements injects iframes
+   so we mostly theme them via the Appearance API in JS. These rules just
+   ensure the mount points have the right outer surface. */
+#nv-link-element,
+#nv-address-element,
+#nv-payment-element {
+  min-height: 20px;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+  .nv-checkout-shell { padding: 20px 18px 48px; }
+  .nv-checkout-body {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .nv-checkout-right {
+    position: static;
+    order: -1; /* summary above the form on mobile */
+  }
+  .nv-checkout-title { font-size: 38px; }
+  .nv-summary { padding: 20px; }
+  .nv-summary-eyebrow { font-size: 20px; }
+}
