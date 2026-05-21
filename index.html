@@ -216,39 +216,93 @@
       <form class="contact-form" id="contact-form" novalidate>
         <div class="field-row">
           <div class="field">
-            <label>Your name</label>
-            <input type="text" name="name" id="cf-name" placeholder="Jane Smith" />
+            <label for="cf-name">Your name</label>
+            <input type="text" name="name" id="cf-name" placeholder="Jane Smith" autocomplete="name" />
             <span class="field-error" id="err-name"></span>
           </div>
           <div class="field">
-            <label>Email</label>
-            <input type="email" name="email" id="cf-email" placeholder="you@example.com" />
+            <label for="cf-email">Email</label>
+            <input type="email" name="email" id="cf-email" placeholder="you@example.com" autocomplete="email" />
             <span class="field-error" id="err-email"></span>
           </div>
         </div>
-        <div class="field">
-          <label>What's this about?</label>
-          <select name="topic" id="cf-topic">
-            <option value="general">General inquiry</option>
-            <option value="commission">Custom commission</option>
-            <option value="press">Press / interview</option>
-            <option value="wholesale">Wholesale / stockist</option>
-            <option value="shipping">Order or shipping question</option>
-          </select>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="cf-topic">What's this about?</label>
+            <select name="topic" id="cf-topic">
+              <option value="general">General inquiry</option>
+              <option value="commission">Custom commission</option>
+              <option value="press">Press / interview</option>
+              <option value="wholesale">Wholesale / stockist</option>
+              <option value="shipping">Order or shipping question</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="cf-phone">Phone <span class="field-optional">(optional)</span></label>
+            <input type="tel" name="phone" id="cf-phone" placeholder="(818) 555-0100" autocomplete="tel" />
+          </div>
         </div>
+
+        <!-- Commission-only fields (revealed when topic = commission) -->
+        <div class="field-commission" id="cf-commission-extras" hidden>
+          <div class="field-row">
+            <div class="field">
+              <label for="cf-budget">Budget range <span class="field-optional">(optional)</span></label>
+              <select name="budget" id="cf-budget">
+                <option value="">No preference yet</option>
+                <option value="under-50">Under $50</option>
+                <option value="50-150">$50 – $150</option>
+                <option value="150-300">$150 – $300</option>
+                <option value="300-600">$300 – $600</option>
+                <option value="600-plus">$600+</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cf-size">Size in mind <span class="field-optional">(optional)</span></label>
+              <input type="text" name="size" id="cf-size" placeholder="e.g. 8×10, 20×30, whatever feels right" />
+            </div>
+          </div>
+        </div>
+
         <div class="field">
-          <label>Message</label>
-          <textarea name="message" id="cf-message" rows="6" placeholder="Tell Veronica what you're thinking — colors, size, occasion, anything that helps her get started."></textarea>
+          <label for="cf-message">Message</label>
+          <textarea name="message" id="cf-message" rows="5" placeholder="Tell Veronica what you're thinking — colors, mood, occasion, anything that helps her get started."></textarea>
           <span class="field-error" id="err-message"></span>
         </div>
+
+        <!-- Honeypot — bots fill this, humans never see it. Submissions where this is filled get rejected. -->
+        <div class="field-honeypot" aria-hidden="true">
+          <label>Website</label>
+          <input type="text" name="botcheck" id="cf-botcheck" tabindex="-1" autocomplete="off" />
+        </div>
+
         <div class="contact-form-footer">
-          <p class="contact-form-note">🔒 Your info stays with Veronica. Never shared, never spammed.</p>
-          <button type="submit" class="btn btn-primary">
-            Send message
-            <svg class="btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          <p class="contact-form-note">🔒 Your info goes straight to Veronica. Never shared, never sold.</p>
+          <button type="submit" class="btn btn-primary" id="cf-submit">
+            <span class="cf-submit-label">Send message</span>
+            <svg class="btn-arrow cf-submit-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            <span class="cf-submit-spinner" hidden>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="9" stroke-opacity="0.3"/>
+                <path d="M21 12a9 9 0 0 0-9-9"/>
+              </svg>
+            </span>
           </button>
         </div>
       </form>
+
+      <!-- Success card — shown after a successful submit -->
+      <div class="contact-success" id="cf-success" hidden>
+        <div class="contact-success-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h3>Message <span class="italic">sent.</span></h3>
+        <p>Thanks for reaching out — Veronica usually replies within 24 hours. Check your inbox for a copy of your message.</p>
+        <button type="button" class="btn btn-ghost" id="cf-success-reset">Send another message</button>
+      </div>
 
       <!-- RIGHT: Contact methods -->
       <div class="contact-methods">

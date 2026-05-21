@@ -114,6 +114,35 @@ That's it — you're live.
 
 ---
 
+## 8. Wire up the contact form (one-time)
+
+The contact form sends real email to Veronica via **Web3Forms** — a free relay
+service. No signup or domain verification required. The first submission has
+to be confirmed once by clicking a link Web3Forms emails, then all future
+submissions just go straight through.
+
+1. Go to https://web3forms.com
+2. In the "Create Access Key" box on the homepage, enter
+   `desioveronica11@gmail.com` (or whichever email should receive contact
+   messages). Hit submit.
+3. Veronica gets an email from Web3Forms with the access key. She clicks
+   the verify link in that email.
+4. The access key now appears at the top of that email. It looks like a UUID,
+   e.g. `aaaa-bbbb-1234-5678-...`. Copy it.
+5. Open `app.js`, search for `WEB3FORMS_ACCESS_KEY = 'REPLACE_WITH_...'`, and
+   paste the key in. Commit + push. Netlify auto-deploys.
+6. Test by submitting the form on the live site. Veronica should receive
+   the message in her inbox within a minute.
+
+Web3Forms free tier covers 250 submissions per month, which is more than
+enough for an artist storefront. If you ever need more, they have paid plans;
+or we can swap to Resend / Mailgun / a Netlify Function later.
+
+If a submission fails the form shows a "Could not send" error toast — that
+usually means the access key is missing or wrong.
+
+---
+
 ## Day-to-day operations
 
 ### When a piece sells

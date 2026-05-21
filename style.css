@@ -1276,3 +1276,128 @@ ng-top: 24px; }
   .nv-summary { padding: 20px; }
   .nv-summary-eyebrow { font-size: 20px; }
 }
+
+/* ============================================================
+   CONTACT FORM — enhanced
+   ============================================================ */
+
+/* "Optional" tag next to field labels */
+.field-optional {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--nvee-text-dim);
+  margin-left: 4px;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+/* Commission-only fields — animated reveal */
+.field-commission {
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease,
+              margin 0.3s ease;
+  max-height: 200px;
+  opacity: 1;
+}
+.field-commission[hidden] {
+  display: block !important;
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Honeypot — invisible to humans, visible to bots that fill all fields */
+.field-honeypot {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+/* Submit button — loading state */
+#cf-submit { position: relative; }
+#cf-submit.loading .cf-submit-label { opacity: 0; }
+#cf-submit.loading .cf-submit-arrow { display: none; }
+#cf-submit.loading .cf-submit-spinner {
+  display: inline-flex !important;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+#cf-submit .cf-submit-spinner { display: none; }
+#cf-submit .cf-submit-spinner svg { animation: nv-spin 0.8s linear infinite; }
+
+/* Success card */
+.contact-success {
+  text-align: center;
+  padding: 48px 32px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(0, 180, 255, 0.06), rgba(0, 119, 194, 0.02));
+  border: 1px solid var(--nvee-line);
+  animation: cf-success-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes cf-success-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.contact-success-icon {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, var(--nvee-blue-electric), var(--nvee-blue));
+  color: var(--nvee-black);
+  animation: cf-icon-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+}
+@keyframes cf-icon-pop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+.contact-success h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  margin: 0 0 12px;
+  font-weight: 700;
+  color: var(--nvee-text);
+}
+.contact-success h3 .italic {
+  font-style: italic;
+  color: var(--nvee-blue-electric);
+}
+.contact-success p {
+  color: #b9c2d4;
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 440px;
+  margin: 0 auto 24px;
+}
+
+/* Improve focus states on contact fields */
+.contact-form input:focus,
+.contact-form select:focus,
+.contact-form textarea:focus {
+  outline: none;
+  border-color: var(--nvee-blue) !important;
+  box-shadow: 0 0 0 3px rgba(0, 180, 255, 0.18) !important;
+}
+
+/* Error shake */
+.contact-form .field.has-error input,
+.contact-form .field.has-error select,
+.contact-form .field.has-error textarea {
+  animation: cf-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+@keyframes cf-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}

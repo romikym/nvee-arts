@@ -485,19 +485,77 @@ async function init() {
     e.target.querySelector('button').textContent = 'Subscribed ✓';
   });
 
+  // ============ CONTACT FORM ============
+  // Real email delivery via Web3Forms (free, no domain verification required,
+  // no archive — messages go directly to Veronica's inbox).
+  //
+  // SETUP: get a free access key from https://web3forms.com — just enter
+  // desioveronica11@gmail.com on their homepage and they'll email an access
+  // key (no signup required). Paste it below where the placeholder is.
+  const WEB3FORMS_ACCESS_KEY = 'REPLACE_WITH_YOUR_WEB3FORMS_ACCESS_KEY';
+
+  const TOPIC_LABELS = {
+    general: 'General inquiry',
+    commission: 'Custom commission',
+    press: 'Press / interview',
+    wholesale: 'Wholesale / stockist',
+    shipping: 'Order or shipping question',
+  };
+
   const contactForm = $('#contact-form');
   if (contactForm) {
-    contactForm.addEventListener('submit', e => {
+    // Reveal commission-only fields when topic changes
+    const topicSel = $('#cf-topic');
+    const commissionExtras = $('#cf-commission-extras');
+    const updateCommissionVisibility = () => {
+      if (!commissionExtras) return;
+      const isCommission = topicSel.value === 'commission';
+      commissionExtras.hidden = !isCommission;
+    };
+    if (topicSel) topicSel.addEventListener('change', updateCommissionVisibility);
+    updateCommissionVisibility();
+
+    // Clear field errors as the user types
+    ['cf-name', 'cf-email', 'cf-message'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        el.parentElement.classList.remove('has-error');
+        const errId = 'err-' + id.replace('cf-', '');
+        const errEl = document.getElementById(errId);
+        if (errEl) errEl.textContent = '';
+      });
+    });
+
+    // Reset back from success state
+    const successResetBtn = document.getElementById('cf-success-reset');
+    if (successResetBtn) {
+      successResetBtn.addEventListener('click', () => {
+        document.getElementById('cf-success').hidden = true;
+        contactForm.hidden = false;
+        contactForm.reset();
+        updateCommissionVisibility();
+        document.getElementById('cf-name')?.focus();
+      });
+    }
+
+    contactForm.addEventListener('submit', async e => {
       e.preventDefault();
+
       // Clear previous errors
       $$('.field.has-error').forEach(f => f.classList.remove('has-error'));
-      $$('.field-error').forEach(e => e.textContent = '');
+      $$('.field-error').forEach(el => el.textContent = '');
 
       const name = $('#cf-name').value.trim();
       const email = $('#cf-email').value.trim();
       const topic = $('#cf-topic').value;
+      const phone = $('#cf-phone')?.value.trim() || '';
+      const budget = $('#cf-budget')?.value || '';
+      const size = $('#cf-size')?.value.trim() || '';
       const message = $('#cf-message').value.trim();
+      const botcheck = $('#cf-botcheck')?.value || '';
 
+      // Validation
       let hasError = false;
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -526,18 +584,67 @@ async function init() {
         return;
       }
 
-      const btn = contactForm.querySelector('button[type="submit"]');
-      const originalHtml = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = 'Sending…';
+      // Honeypot: if the hidden botcheck field is filled, silently "succeed"
+      // to waste the bot's time without telling them we're onto them.
+      if (botcheck) {
+        showSuccessCard();
+        return;
+      }
 
-      setTimeout(() => {
-        showToast('Message sent', 'Veronica will reply within 24 hours');
-        contactForm.reset();
-        btn.innerHTML = 'Sent ✓';
-        setTimeout(() => { btn.disabled = false; btn.innerHTML = originalHtml; }, 3500);
-      }, 700);
+      const btn = document.getElementById('cf-submit');
+      btn.disabled = true;
+      btn.classList.add('loading');
+
+      try {
+        const topicLabel = TOPIC_LABELS[topic] || topic;
+        const payload = {
+          access_key: WEB3FORMS_ACCESS_KEY,
+          subject: `[NVee Arts · ${topicLabel}] ${name}`,
+          from_name: `${name} (via NVee Arts site)`,
+          name,
+          email,
+          topic: topicLabel,
+          phone,
+          budget,
+          size,
+          message,
+          // Web3Forms includes these automatically in the email body
+        };
+
+        if (WEB3FORMS_ACCESS_KEY === 'REPLACE_WITH_YOUR_WEB3FORMS_ACCESS_KEY') {
+          throw new Error('Web3Forms access key not configured. See SETUP.md.');
+        }
+
+        const res = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Submission failed');
+        }
+
+        showSuccessCard();
+      } catch (err) {
+        console.error('Contact form submit failed:', err);
+        showToast('Could not send', 'Please try again or email Veronica directly.');
+        btn.disabled = false;
+        btn.classList.remove('loading');
+      }
     });
+
+    function showSuccessCard() {
+      contactForm.hidden = true;
+      const success = document.getElementById('cf-success');
+      if (success) {
+        success.hidden = false;
+        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
   }
 
   document.addEventListener('keydown', e => {
