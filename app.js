@@ -5,7 +5,7 @@ let PRODUCTS = [];
 
 async function loadProducts() {
   try {
-    const res = await fetch('/.netlify/functions/get-products', { cache: 'no-cache' });
+    const res = await fetch('/.netlify/functions/get-products?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to load products: ' + res.status);
     PRODUCTS = await res.json();
   } catch (err) {

@@ -11,7 +11,8 @@ function corsHeaders() {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json',
-    'Cache-Control': 'public, max-age=60',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Netlify-CDN-Cache-Control': 'no-store',
   };
 }
 
