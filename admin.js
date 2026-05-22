@@ -584,6 +584,7 @@ function openProductModal(mode, product) {
   setSlugDisplay(p.id || '—', mode === 'edit');
   $('#prod-name').value = p.name || '';
   $('#prod-price').value = p.price ?? '';
+  $('#prod-shipping').value = p.shipping ?? '';
   $('#prod-collection').value = p.collection || 'signature';
   $('#prod-detail').value = p.detail || '';
   $('#prod-description').value = p.description || '';
@@ -780,10 +781,20 @@ async function handleProductFormSubmit(e) {
     if (!confirmed) return;
   }
 
+  // Shipping is optional. Empty input → undefined so the server falls back to default.
+  const shippingRaw = $('#prod-shipping').value;
+  const shipping = shippingRaw === '' ? undefined : parseFloat(shippingRaw);
+  if (shipping !== undefined && (isNaN(shipping) || shipping < 0)) {
+    showFormError('Shipping must be a non-negative number, or leave it blank to use the default.');
+    $('#prod-shipping').focus();
+    return;
+  }
+
   const product = {
     id,
     name,
     price,
+    shipping, // undefined OK — server falls back to default
     collection: $('#prod-collection').value,
     image,
     meta: $('#prod-meta').value.trim(),
@@ -948,7 +959,6 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#contact-list').addEventListener('click', handleContactAction);
 
   // Products
-  $('#products-list-admin').addEventListener('click', handleProductsAction);
   $('#open-new-product').addEventListener('click', () => openProductModal('new', null));
   $('#product-modal-close').addEventListener('click', closeProductModal);
   $('#product-form-cancel').addEventListener('click', closeProductModal);

@@ -67,7 +67,12 @@ function setFilterAndScroll(filter) {
 const cartLines = () => Array.from(cart.entries()).map(([id, qty]) => ({ ...getProduct(id), qty }));
 const cartItemCount = () => Array.from(cart.values()).reduce((a, b) => a + b, 0);
 const cartSubtotal = () => cartLines().reduce((a, l) => a + l.price * l.qty, 0);
-const cartShipping = () => cart.size === 0 ? 0 : SHIPPING_RATE;
+// Per-product shipping. Each product may set its own `shipping` (dollars);
+// fall back to SHIPPING_RATE for legacy products that don't have one set.
+const cartShipping = () => cartLines().reduce(
+  (a, l) => a + (l.shipping != null ? Number(l.shipping) : SHIPPING_RATE),
+  0
+);
 const cartTotal = () => cartSubtotal() + cartShipping();
 
 function addToCart(id, opts = {}) {

@@ -266,14 +266,23 @@
                 </div>
               </div>
               <div class="field">
-                <label class="prod-field-label" for="prod-collection">Which collection?</label>
-                <select id="prod-collection">
-                  <option value="signature">Signature (framed originals)</option>
-                  <option value="mixed-media">Mixed Media (hearts &amp; lettering)</option>
-                  <option value="fluid">Fluid Art (minis &amp; resin)</option>
-                  <option value="florals">Florals (pressed &amp; preserved)</option>
-                </select>
+                <label class="prod-field-label" for="prod-shipping">Shipping cost?</label>
+                <div class="prod-price-input">
+                  <span class="prod-price-prefix">$</span>
+                  <input type="number" id="prod-shipping" min="0" step="1" placeholder="11" />
+                </div>
+                <small class="admin-help-inline">USPS Priority is typically $11. Larger framed pieces may cost more.</small>
               </div>
+            </div>
+
+            <div class="field">
+              <label class="prod-field-label" for="prod-collection">Which collection?</label>
+              <select id="prod-collection">
+                <option value="signature">Signature (framed originals)</option>
+                <option value="mixed-media">Mixed Media (hearts &amp; lettering)</option>
+                <option value="fluid">Fluid Art (minis &amp; resin)</option>
+                <option value="florals">Florals (pressed &amp; preserved)</option>
+              </select>
             </div>
 
             <div class="field">

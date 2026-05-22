@@ -31,7 +31,9 @@ function loadProducts() {
   throw new Error('Could not locate products.json');
 }
 
-const SHIPPING_FLAT_CENTS = 1100; // $11 USPS Priority — mirrors frontend preview
+// Fallback shipping for products that don't have a per-item `shipping` field set.
+// Per-product shipping is preferred (set in the admin product form).
+const SHIPPING_FLAT_CENTS = 1100; // $11 USPS Priority default
 
 function corsHeaders() {
   return {
@@ -90,8 +92,9 @@ exports.handler = async (event) => {
 
   const byId = new Map(products.map((p) => [p.id, p]));
 
-  // Compute totals server-side
+  // Compute totals server-side. Shipping is per-product with a fallback default.
   let subtotalCents = 0;
+  let shippingCents = 0;
   const lineSummary = [];
   for (const item of items) {
     const product = byId.get(item.id);
@@ -106,15 +109,22 @@ exports.handler = async (event) => {
     const qty = 1;
     const lineCents = Math.round(product.price * 100) * qty;
     subtotalCents += lineCents;
+
+    // Per-product shipping with fallback. `product.shipping` is in dollars.
+    const itemShippingCents = product.shipping != null
+      ? Math.round(Number(product.shipping) * 100)
+      : SHIPPING_FLAT_CENTS;
+    shippingCents += itemShippingCents;
+
     lineSummary.push({
       id: product.id,
       name: product.name,
       price: product.price,
+      shippingCents: itemShippingCents,
       quantity: qty,
     });
   }
 
-  const shippingCents = SHIPPING_FLAT_CENTS;
   const totalCents = subtotalCents + shippingCents;
 
   try {
