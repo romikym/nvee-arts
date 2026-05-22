@@ -449,6 +449,21 @@ async function handleCreateInvoice(e) {
 let allProductsCache = [];
 const productFilters = { status: 'all', collection: 'all', search: '', sort: 'default' };
 
+// Slugify a name → URL-safe id. e.g. "San Fernando 818" → "san-fernando-818"
+function slugify(name) {
+  return (name || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
 async function loadProductsAdmin() {
   $('#products-loading').hidden = false;
   $('#products-empty').hidden = true;
@@ -480,17 +495,11 @@ function updateProductCounts() {
 
 function applyProductFilters() {
   let list = allProductsCache.slice();
-
-  // Status filter
   if (productFilters.status === 'available') list = list.filter(p => !p.soldOut);
   else if (productFilters.status === 'sold') list = list.filter(p => p.soldOut);
-
-  // Collection filter
   if (productFilters.collection !== 'all') {
     list = list.filter(p => p.collection === productFilters.collection);
   }
-
-  // Search
   const q = productFilters.search.trim().toLowerCase();
   if (q) {
     list = list.filter(p =>
@@ -499,15 +508,11 @@ function applyProductFilters() {
       (p.detail || '').toLowerCase().includes(q)
     );
   }
-
-  // Sort
   if (productFilters.sort === 'price-desc') list.sort((a,b) => Number(b.price) - Number(a.price));
   else if (productFilters.sort === 'price-asc') list.sort((a,b) => Number(a.price) - Number(b.price));
   else if (productFilters.sort === 'name-asc') list.sort((a,b) => (a.name||'').localeCompare(b.name||''));
   else if (productFilters.sort === 'name-desc') list.sort((a,b) => (b.name||'').localeCompare(a.name||''));
-  // 'default' keeps catalog order from server
 
-  // Showing count + empty state
   document.getElementById('products-showing').textContent =
     `Showing ${list.length} of ${allProductsCache.length}`;
   if (allProductsCache.length === 0) {
@@ -523,7 +528,6 @@ function applyProductFilters() {
   } else {
     $('#products-empty').hidden = true;
   }
-
   $('#products-list-admin').innerHTML = list.map(renderProductCard).join('');
 }
 
@@ -567,31 +571,117 @@ async function fetchAllProducts() {
   return allProductsCache;
 }
 
+// ---- Product modal: open/close + form state ----
+let slugEditedManually = false;
+
 function openProductModal(mode, product) {
   $('#prod-mode').value = mode;
-  $('#product-modal-title').textContent = mode === 'new' ? 'New product' : 'Edit product';
+  $('#product-modal-title').textContent = mode === 'new' ? 'New piece' : 'Edit piece';
   $('#product-form-error').textContent = '';
   const p = product || {};
+  slugEditedManually = mode === 'edit'; // editing existing: ID locked
   $('#prod-id').value = p.id || '';
-  $('#prod-id').readOnly = mode === 'edit';
+  setSlugDisplay(p.id || '—', mode === 'edit');
   $('#prod-name').value = p.name || '';
   $('#prod-price').value = p.price ?? '';
   $('#prod-collection').value = p.collection || 'signature';
-  $('#prod-image').value = p.image || '';
-  $('#prod-meta').value = p.meta || '';
-  $('#prod-tag').value = p.tag || '';
   $('#prod-detail').value = p.detail || '';
   $('#prod-description').value = p.description || '';
+  $('#prod-tag').value = p.tag || '';
+  $('#prod-meta').value = p.meta || '';
   $('#prod-spec-size').value = (p.specs && p.specs.Size) || '';
   $('#prod-spec-medium').value = (p.specs && p.specs.Medium) || '';
   $('#prod-spec-year').value = (p.specs && p.specs.Year) || '';
   $('#prod-spec-edition').value = (p.specs && p.specs.Edition) || '';
   $('#prod-sold-out').checked = !!p.soldOut;
+  $('#prod-image').value = p.image || '';
+
+  // Reset file input + preview state
+  $('#prod-file').value = '';
+  showImagePreview(p.image || '');
+
+  // Reset advanced section to collapsed
+  $('#prod-advanced').hidden = true;
+  $('#prod-advanced-toggle').setAttribute('aria-expanded', 'false');
+  $('#prod-advanced-toggle').classList.remove('open');
+
   $('#product-modal').hidden = false;
   setTimeout(() => $('#prod-name').focus(), 50);
 }
 function closeProductModal() {
   $('#product-modal').hidden = true;
+}
+
+function setSlugDisplay(slug, locked) {
+  const disp = $('#prod-id-display');
+  if (disp) disp.textContent = slug || '—';
+  const editBtn = $('#prod-edit-slug');
+  if (editBtn) editBtn.hidden = locked;
+}
+
+function showImagePreview(url) {
+  const empty = $('#prod-dropzone-empty');
+  const preview = $('#prod-dropzone-preview');
+  const uploading = $('#prod-dropzone-uploading');
+  const img = $('#prod-image-preview');
+  uploading.hidden = true;
+  if (url) {
+    img.src = url;
+    preview.hidden = false;
+    empty.hidden = true;
+  } else {
+    img.removeAttribute('src');
+    preview.hidden = true;
+    empty.hidden = false;
+  }
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // result is a data URL like "data:image/jpeg;base64,..." — strip the prefix.
+      const str = String(reader.result || '');
+      const i = str.indexOf(',');
+      resolve(i >= 0 ? str.slice(i + 1) : str);
+    };
+    reader.onerror = () => reject(reader.error || new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadSelectedFile(file) {
+  if (!file) return;
+  if (!file.type || !file.type.startsWith('image/')) {
+    showToast('That file isn\'t a photo', 'Try a JPEG, PNG, or WebP image.');
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('Photo is too large', 'Max 8 MB — try resizing or recompressing.');
+    return;
+  }
+
+  $('#prod-dropzone-empty').hidden = true;
+  $('#prod-dropzone-preview').hidden = true;
+  $('#prod-dropzone-uploading').hidden = false;
+
+  try {
+    const base64 = await readFileAsBase64(file);
+    const data = await apiFetch('/.netlify/functions/admin-image-upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: file.name,
+        contentType: file.type,
+        base64,
+      }),
+    });
+    $('#prod-image').value = data.url;
+    showImagePreview(data.url);
+    showToast('Photo uploaded', file.name);
+  } catch (err) {
+    showToast('Upload failed', err.message || 'Please try again.');
+    showImagePreview($('#prod-image').value); // restore prior preview
+  }
 }
 
 async function handleProductsAction(e) {
@@ -615,12 +705,12 @@ async function handleProductsAction(e) {
       showToast(updated.soldOut ? 'Marked sold' : 'Marked available', product.name);
       await loadProductsAdmin();
     } else if (action === 'delete') {
-      if (!confirm('Permanently delete this product? This cannot be undone.')) return;
+      if (!confirm('Permanently delete this piece? This cannot be undone.')) return;
       await apiFetch('/.netlify/functions/admin-products-delete', {
         method: 'POST',
         body: JSON.stringify({ id }),
       });
-      showToast('Product deleted');
+      showToast('Piece deleted');
       await loadProductsAdmin();
     }
   } catch (err) {
@@ -632,12 +722,27 @@ async function handleProductFormSubmit(e) {
   e.preventDefault();
   const errEl = $('#product-form-error');
   errEl.textContent = '';
+
+  const name = $('#prod-name').value.trim();
+  const id = ($('#prod-id').value.trim()) || slugify(name);
+  const price = parseFloat($('#prod-price').value);
+  const image = $('#prod-image').value.trim();
+
+  if (!name || !id || isNaN(price)) {
+    errEl.textContent = 'Name and price are required.';
+    return;
+  }
+  if (!image) {
+    errEl.textContent = 'Please add a photo before saving.';
+    return;
+  }
+
   const product = {
-    id: $('#prod-id').value.trim(),
-    name: $('#prod-name').value.trim(),
-    price: parseFloat($('#prod-price').value),
+    id,
+    name,
+    price,
     collection: $('#prod-collection').value,
-    image: $('#prod-image').value.trim(),
+    image,
     meta: $('#prod-meta').value.trim(),
     tag: $('#prod-tag').value.trim(),
     tagClass: '',
@@ -651,10 +756,7 @@ async function handleProductFormSubmit(e) {
     },
     soldOut: $('#prod-sold-out').checked,
   };
-  if (!product.id || !product.name || isNaN(product.price)) {
-    errEl.textContent = 'ID, name, and price are required.';
-    return;
-  }
+
   try {
     await apiFetch('/.netlify/functions/admin-products-save', {
       method: 'POST',
@@ -670,7 +772,6 @@ async function handleProductFormSubmit(e) {
 
 // Filter / sort / search toolbar event handlers
 function wireProductToolbar() {
-  // Status pills
   document.querySelectorAll('[data-pfilter-status]').forEach(btn => {
     btn.addEventListener('click', () => {
       productFilters.status = btn.dataset.pfilterStatus;
@@ -678,7 +779,6 @@ function wireProductToolbar() {
       applyProductFilters();
     });
   });
-  // Collection pills
   document.querySelectorAll('[data-pfilter-collection]').forEach(btn => {
     btn.addEventListener('click', () => {
       productFilters.collection = btn.dataset.pfilterCollection;
@@ -686,7 +786,6 @@ function wireProductToolbar() {
       applyProductFilters();
     });
   });
-  // Search
   const search = document.getElementById('products-search');
   if (search) {
     search.addEventListener('input', () => {
@@ -694,12 +793,97 @@ function wireProductToolbar() {
       applyProductFilters();
     });
   }
-  // Sort
   const sort = document.getElementById('products-sort');
   if (sort) {
     sort.addEventListener('change', () => {
       productFilters.sort = sort.value;
       applyProductFilters();
+    });
+  }
+}
+
+// New: wire up the product modal's auto-slug, dropzone, and advanced toggle
+function wireProductModal() {
+  // Auto-slug from name (only until user manually edits the slug)
+  const nameEl = $('#prod-name');
+  if (nameEl) {
+    nameEl.addEventListener('input', () => {
+      if (slugEditedManually) return;
+      const newSlug = slugify(nameEl.value);
+      $('#prod-id').value = newSlug;
+      setSlugDisplay(newSlug, false);
+    });
+  }
+  // Edit slug button → prompt for custom slug
+  const editSlug = $('#prod-edit-slug');
+  if (editSlug) {
+    editSlug.addEventListener('click', () => {
+      const current = $('#prod-id').value;
+      const next = prompt('Web ID (lowercase letters, numbers, and hyphens only):', current);
+      if (next === null) return;
+      const cleaned = slugify(next);
+      if (!cleaned) return;
+      $('#prod-id').value = cleaned;
+      setSlugDisplay(cleaned, false);
+      slugEditedManually = true;
+    });
+  }
+
+  // Advanced section toggle
+  const advToggle = $('#prod-advanced-toggle');
+  if (advToggle) {
+    advToggle.addEventListener('click', () => {
+      const adv = $('#prod-advanced');
+      const open = adv.hidden;
+      adv.hidden = !open;
+      advToggle.setAttribute('aria-expanded', String(open));
+      advToggle.classList.toggle('open', open);
+    });
+  }
+
+  // File input
+  const fileInput = $('#prod-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) uploadSelectedFile(file);
+    });
+  }
+  // Click anywhere on the dropzone empty state to choose file
+  const empty = $('#prod-dropzone-empty');
+  if (empty) {
+    empty.addEventListener('click', () => fileInput && fileInput.click());
+  }
+  // Replace photo button
+  const replaceBtn = $('#prod-image-replace');
+  if (replaceBtn) {
+    replaceBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput && fileInput.click();
+    });
+  }
+
+  // Drag-and-drop on the dropzone
+  const dropzone = $('#prod-dropzone');
+  if (dropzone) {
+    ['dragenter', 'dragover'].forEach(evt => {
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragging');
+      });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (evt === 'dragleave' && e.target !== dropzone) return;
+        dropzone.classList.remove('dragging');
+      });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) uploadSelectedFile(file);
     });
   }
 }

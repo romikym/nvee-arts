@@ -207,93 +207,134 @@
         <div class="admin-toolbar-count" id="products-showing">Showing 0 of 0</div>
       </div>
 
-      <!-- Product edit modal -->
+      <!-- Product edit modal — simpler, image upload, advanced details collapsed -->
       <div class="admin-modal-backdrop" id="product-modal" hidden>
         <div class="admin-modal">
           <div class="admin-modal-head">
-            <h3 id="product-modal-title">Edit product</h3>
+            <h3 id="product-modal-title">New product</h3>
             <button class="admin-modal-close" id="product-modal-close" aria-label="Close">×</button>
           </div>
-          <form id="product-form" class="admin-form">
-            <input type="hidden" id="prod-mode" value="edit" />
-            <div class="field-row">
-              <div class="field">
-                <label>ID (slug) *</label>
-                <input type="text" id="prod-id" required placeholder="single-rose" />
-                <small class="admin-help-inline">Lowercase, hyphens. Used in URLs / Stripe metadata.</small>
-              </div>
-              <div class="field">
-                <label>Name *</label>
-                <input type="text" id="prod-name" required placeholder="Single Rose" />
+          <form id="product-form" class="admin-form admin-product-form">
+            <input type="hidden" id="prod-mode" value="new" />
+            <input type="hidden" id="prod-image" value="" />
+
+            <!-- PHOTO -->
+            <div class="field">
+              <label class="prod-field-label">Photo</label>
+              <div class="prod-dropzone" id="prod-dropzone">
+                <input type="file" id="prod-file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+                <div class="prod-dropzone-empty" id="prod-dropzone-empty">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="9" cy="9" r="2"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                  <div class="prod-dropzone-title">Drop a photo here or <span class="prod-dropzone-link">click to choose</span></div>
+                  <div class="prod-dropzone-sub">JPEG, PNG, WebP up to 8 MB. Square crops look best.</div>
+                </div>
+                <div class="prod-dropzone-preview" id="prod-dropzone-preview" hidden>
+                  <img id="prod-image-preview" alt="Preview" />
+                  <button type="button" class="prod-dropzone-replace" id="prod-image-replace">Replace photo</button>
+                </div>
+                <div class="prod-dropzone-uploading" id="prod-dropzone-uploading" hidden>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: nv-spin 0.8s linear infinite;">
+                    <circle cx="12" cy="12" r="9" stroke-opacity="0.25"/>
+                    <path d="M21 12a9 9 0 0 0-9-9"/>
+                  </svg>
+                  <span>Uploading…</span>
+                </div>
               </div>
             </div>
+
+            <!-- ESSENTIALS -->
+            <div class="field">
+              <label class="prod-field-label" for="prod-name">What's this piece called?</label>
+              <input type="text" id="prod-name" required placeholder="e.g. Single Rose, San Fernando 818, Blue Tide" />
+              <div class="prod-help-row">
+                <small class="admin-help-inline">Public name shown on the shop.</small>
+                <small class="admin-help-inline prod-slug-hint">Web ID: <code id="prod-id-display">—</code> <button type="button" class="prod-edit-slug" id="prod-edit-slug">edit</button></small>
+              </div>
+              <input type="text" id="prod-id" required hidden />
+            </div>
+
             <div class="field-row">
               <div class="field">
-                <label>Price (USD) *</label>
-                <input type="number" id="prod-price" min="0" step="1" required placeholder="20" />
+                <label class="prod-field-label" for="prod-price">How much?</label>
+                <div class="prod-price-input">
+                  <span class="prod-price-prefix">$</span>
+                  <input type="number" id="prod-price" min="0" step="1" required placeholder="85" />
+                </div>
               </div>
               <div class="field">
-                <label>Collection</label>
+                <label class="prod-field-label" for="prod-collection">Which collection?</label>
                 <select id="prod-collection">
-                  <option value="signature">Signature</option>
-                  <option value="mixed-media">Mixed Media</option>
-                  <option value="fluid">Fluid Art</option>
-                  <option value="florals">Florals</option>
+                  <option value="signature">Signature (framed originals)</option>
+                  <option value="mixed-media">Mixed Media (hearts &amp; lettering)</option>
+                  <option value="fluid">Fluid Art (minis &amp; resin)</option>
+                  <option value="florals">Florals (pressed &amp; preserved)</option>
                 </select>
               </div>
             </div>
+
             <div class="field">
-              <label>Image path</label>
-              <input type="text" id="prod-image" placeholder="images/12.jpg" />
-              <small class="admin-help-inline">Path to image in the repo. Image upload coming in a future update — for now, drop new images into the <code>images/</code> folder via Git.</small>
+              <label class="prod-field-label" for="prod-detail">One-line teaser</label>
+              <input type="text" id="prod-detail" placeholder="e.g. Hand-pressed viola on jet-black acrylic, sealed in glossy resin" />
+              <small class="admin-help-inline">Shows under the name on the shop grid.</small>
             </div>
-            <div class="field-row">
-              <div class="field">
-                <label>Meta label</label>
-                <input type="text" id="prod-meta" placeholder="Florals · 4×4 Tile" />
-              </div>
-              <div class="field">
-                <label>Tag <span class="field-optional">(optional)</span></label>
-                <input type="text" id="prod-tag" placeholder="New, Signature, 1 of 1, etc." />
-              </div>
-            </div>
+
             <div class="field">
-              <label>Short detail (one line shown on grid)</label>
-              <input type="text" id="prod-detail" placeholder="Single red rose preserved in resin on a black ceramic tile" />
+              <label class="prod-field-label" for="prod-description">Tell the story</label>
+              <textarea id="prod-description" rows="4" placeholder="The longer description shown when someone opens the piece. What makes it special? Inspiration, technique, mood — whatever helps a collector feel it."></textarea>
             </div>
-            <div class="field">
-              <label>Full description</label>
-              <textarea id="prod-description" rows="4" placeholder="Longer description shown in the product modal."></textarea>
+
+            <!-- ADVANCED — collapsed -->
+            <button type="button" class="prod-advanced-toggle" id="prod-advanced-toggle" aria-expanded="false">
+              <svg class="prod-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              Specs &amp; details (optional)
+            </button>
+            <div class="prod-advanced" id="prod-advanced" hidden>
+              <div class="field-row">
+                <div class="field">
+                  <label class="prod-field-label" for="prod-tag">Tag <span class="field-optional">(badge on shop)</span></label>
+                  <input type="text" id="prod-tag" placeholder='e.g. "New", "Signature", "1 of 1", "Resin Sealed"' />
+                </div>
+                <div class="field">
+                  <label class="prod-field-label" for="prod-meta">Meta line <span class="field-optional">(small text under name)</span></label>
+                  <input type="text" id="prod-meta" placeholder='e.g. Florals · 4×4 Tile' />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="prod-field-label" for="prod-spec-size">Size</label>
+                  <input type="text" id="prod-spec-size" placeholder='4×4" panel' />
+                </div>
+                <div class="field">
+                  <label class="prod-field-label" for="prod-spec-medium">Medium</label>
+                  <input type="text" id="prod-spec-medium" placeholder="Fluid acrylic in resin" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="prod-field-label" for="prod-spec-year">Year</label>
+                  <input type="text" id="prod-spec-year" placeholder="2026" />
+                </div>
+                <div class="field">
+                  <label class="prod-field-label" for="prod-spec-edition">Edition</label>
+                  <input type="text" id="prod-spec-edition" placeholder="One of one" />
+                </div>
+              </div>
             </div>
-            <div class="field-row">
-              <div class="field">
-                <label>Size</label>
-                <input type="text" id="prod-spec-size" placeholder='4×4" panel' />
-              </div>
-              <div class="field">
-                <label>Medium</label>
-                <input type="text" id="prod-spec-medium" placeholder="Image in resin" />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label>Year</label>
-                <input type="text" id="prod-spec-year" placeholder="2026" />
-              </div>
-              <div class="field">
-                <label>Edition</label>
-                <input type="text" id="prod-spec-edition" placeholder="One of one" />
-              </div>
-            </div>
+
             <div class="field-row">
               <label class="admin-checkbox">
                 <input type="checkbox" id="prod-sold-out" />
                 <span>Mark as sold (hidden from public shop)</span>
               </label>
             </div>
+
             <div class="admin-form-actions">
               <button type="button" class="btn btn-ghost" id="product-form-cancel">Cancel</button>
-              <button type="submit" class="btn btn-primary" id="product-form-submit">Save</button>
+              <button type="submit" class="btn btn-primary" id="product-form-submit">Save piece</button>
             </div>
             <div class="admin-form-error" id="product-form-error" role="alert"></div>
           </form>
