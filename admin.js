@@ -29,6 +29,35 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Animate a stat value element from 0 → its target on first render. Honors
+// prefers-reduced-motion. The element's final textContent must already be set
+// before calling — the helper parses it back and counts up.
+function animateStatValue(el, opts = {}) {
+  if (!el) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const finalText = (el.textContent || '').trim();
+  // Extract leading $ if present, then any digits + optional .decimals
+  const m = finalText.match(/^(\$?)(\d+(?:\.\d+)?)(.*)$/);
+  if (!m) return;
+  const prefix = m[1];
+  const target = parseFloat(m[2]);
+  const suffix = m[3];
+  const isFloat = m[2].includes('.');
+  if (!isFinite(target) || target <= 0) { return; }
+  const duration = Math.min(900, 400 + target * 8);
+  const start = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const value = target * eased;
+    el.textContent = prefix + (isFloat ? value.toFixed(2) : Math.floor(value).toString()) + suffix;
+    if (t < 1) requestAnimationFrame(frame);
+    else el.textContent = finalText; // exact final value
+  }
+  requestAnimationFrame(frame);
+}
+
+
 function getToken() { return localStorage.getItem(TOKEN_STORAGE_KEY); }
 function setToken(t) { localStorage.setItem(TOKEN_STORAGE_KEY, t); }
 function clearToken() { localStorage.removeItem(TOKEN_STORAGE_KEY); }
@@ -189,6 +218,10 @@ async function loadDashboard() {
   const unread = messages.filter(m => !m.read);
   $('#dash-messages-unread').textContent = unread.length;
   updateContactBadge(unread.length);
+
+  // Animate the stat numbers up from 0 on first render.
+  ['#dash-revenue', '#dash-orders-month', '#dash-invoices-open', '#dash-products-available', '#dash-messages-unread']
+    .forEach(sel => animateStatValue(document.querySelector(sel)));
 
   // --- Activity feed (combined, sorted, top 10) ---
   const activity = [];
