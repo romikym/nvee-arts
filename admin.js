@@ -825,6 +825,7 @@ function openProductModal(mode, product) {
   $('#prod-detail').value = p.detail || '';
   $('#prod-description').value = p.description || '';
   $('#prod-tag').value = p.tag || '';
+  $('#prod-tag-class').value = p.tagClass || '';
   $('#prod-meta').value = p.meta || '';
   $('#prod-spec-size').value = (p.specs && p.specs.Size) || '';
   $('#prod-spec-medium').value = (p.specs && p.specs.Medium) || '';
@@ -1035,7 +1036,7 @@ async function handleProductFormSubmit(e) {
     image,
     meta: $('#prod-meta').value.trim(),
     tag: $('#prod-tag').value.trim(),
-    tagClass: '',
+    tagClass: $('#prod-tag-class').value,
     detail: $('#prod-detail').value.trim(),
     description: $('#prod-description').value.trim(),
     specs: {

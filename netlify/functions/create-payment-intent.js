@@ -106,6 +106,18 @@ exports.handler = async (event) => {
         body: JSON.stringify({ error: `Unknown product: ${item.id}` }),
       };
     }
+    // Reject sold-out items so a stale cart (or a direct API call) can't
+    // create a payment for a piece that's already been taken.
+    if (product.soldOut) {
+      return {
+        statusCode: 409,
+        headers: corsHeaders(),
+        body: JSON.stringify({
+          error: `Sorry — "${product.name}" just sold. Please refresh and pick another piece.`,
+          soldOutId: product.id,
+        }),
+      };
+    }
     const qty = 1;
     const lineCents = Math.round(product.price * 100) * qty;
     subtotalCents += lineCents;
