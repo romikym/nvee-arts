@@ -1082,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#contact-list').addEventListener('click', handleContactAction);
 
   // Products
+  $('#products-list-admin').addEventListener('click', handleProductsAction);
   $('#open-new-product').addEventListener('click', () => openProductModal('new', null));
   $('#product-modal-close').addEventListener('click', closeProductModal);
   $('#product-form-cancel').addEventListener('click', closeProductModal);
