@@ -303,31 +303,40 @@
 
       <!-- Filter / sort / search toolbar -->
       <div class="admin-toolbar">
-        <div class="admin-filter-row">
-          <span class="admin-filter-label">Status</span>
-          <button class="admin-pill active" data-pfilter-status="all">All <span class="admin-pill-count" data-status-count="all">0</span></button>
-          <button class="admin-pill" data-pfilter-status="available">Available <span class="admin-pill-count" data-status-count="available">0</span></button>
-          <button class="admin-pill" data-pfilter-status="sold">Sold <span class="admin-pill-count" data-status-count="sold">0</span></button>
+        <div class="admin-toolbar-filters">
+          <div class="admin-filter-row">
+            <span class="admin-filter-label">Status</span>
+            <button class="admin-pill active" data-pfilter-status="all">All <span class="admin-pill-count" data-status-count="all">0</span></button>
+            <button class="admin-pill" data-pfilter-status="available">Available <span class="admin-pill-count" data-status-count="available">0</span></button>
+            <button class="admin-pill" data-pfilter-status="sold">Sold <span class="admin-pill-count" data-status-count="sold">0</span></button>
+          </div>
+          <div class="admin-filter-row">
+            <span class="admin-filter-label">Collection</span>
+            <button class="admin-pill active" data-pfilter-collection="all">All</button>
+            <button class="admin-pill" data-pfilter-collection="signature">Signature</button>
+            <button class="admin-pill" data-pfilter-collection="mixed-media">Mixed Media</button>
+            <button class="admin-pill" data-pfilter-collection="fluid">Fluid Art</button>
+            <button class="admin-pill" data-pfilter-collection="florals">Florals</button>
+          </div>
         </div>
-        <div class="admin-filter-row">
-          <span class="admin-filter-label">Collection</span>
-          <button class="admin-pill active" data-pfilter-collection="all">All</button>
-          <button class="admin-pill" data-pfilter-collection="signature">Signature</button>
-          <button class="admin-pill" data-pfilter-collection="mixed-media">Mixed Media</button>
-          <button class="admin-pill" data-pfilter-collection="fluid">Fluid Art</button>
-          <button class="admin-pill" data-pfilter-collection="florals">Florals</button>
+        <div class="admin-toolbar-controls">
+          <div class="admin-toolbar-search">
+            <div class="admin-search-field">
+              <svg class="admin-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input type="search" id="products-search" placeholder="Search by name or ID…" />
+            </div>
+            <div class="admin-sort-field">
+              <select id="products-sort" aria-label="Sort">
+                <option value="default">Default order</option>
+                <option value="price-desc">Price: high → low</option>
+                <option value="price-asc">Price: low → high</option>
+                <option value="name-asc">Name: A → Z</option>
+                <option value="name-desc">Name: Z → A</option>
+              </select>
+            </div>
+          </div>
+          <div class="admin-toolbar-count" id="products-showing">Showing 0 of 0</div>
         </div>
-        <div class="admin-toolbar-search">
-          <input type="search" id="products-search" placeholder="Search by name or ID…" />
-          <select id="products-sort" aria-label="Sort">
-            <option value="default">Default order</option>
-            <option value="price-desc">Price: high → low</option>
-            <option value="price-asc">Price: low → high</option>
-            <option value="name-asc">Name: A → Z</option>
-            <option value="name-desc">Name: Z → A</option>
-          </select>
-        </div>
-        <div class="admin-toolbar-count" id="products-showing">Showing 0 of 0</div>
       </div>
 
       <!-- Product edit modal — simpler, image upload, advanced details collapsed -->

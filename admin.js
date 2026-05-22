@@ -347,16 +347,20 @@ async function loadOrders() {
 
 function renderOrdersList() {
   const all = allOrdersCache;
-  const visible = showHidden.orders ? all : all.filter(o => !hiddenIds.orders.has(o.id));
   const hiddenCount = all.filter(o => hiddenIds.orders.has(o.id)).length;
+  const activeCount = all.length - hiddenCount;
+  // ON = show ONLY hidden, OFF = show ONLY active.
+  const visible = showHidden.orders
+    ? all.filter(o => hiddenIds.orders.has(o.id))
+    : all.filter(o => !hiddenIds.orders.has(o.id));
 
-  // Update the "Show hidden" toggle visibility + label
+  // Update the toggle label + state
   const tgl = document.getElementById('orders-hidden-toggle');
   if (tgl) {
-    if (hiddenCount > 0) {
+    if (hiddenCount > 0 || showHidden.orders) {
       tgl.hidden = false;
       tgl.textContent = showHidden.orders
-        ? `Hide hidden (${hiddenCount})`
+        ? `Back to active (${activeCount})`
         : `Show hidden (${hiddenCount})`;
       tgl.classList.toggle('is-on', showHidden.orders);
     } else {
@@ -620,15 +624,19 @@ async function loadInvoices() {
 
 function renderInvoicesList() {
   const all = allInvoicesCache;
-  const visible = showHidden.invoices ? all : all.filter(i => !hiddenIds.invoices.has(i.id));
   const hiddenCount = all.filter(i => hiddenIds.invoices.has(i.id)).length;
+  const activeCount = all.length - hiddenCount;
+  // ON = show ONLY hidden, OFF = show ONLY active.
+  const visible = showHidden.invoices
+    ? all.filter(i => hiddenIds.invoices.has(i.id))
+    : all.filter(i => !hiddenIds.invoices.has(i.id));
 
   const tgl = document.getElementById('invoices-hidden-toggle');
   if (tgl) {
-    if (hiddenCount > 0) {
+    if (hiddenCount > 0 || showHidden.invoices) {
       tgl.hidden = false;
       tgl.textContent = showHidden.invoices
-        ? `Hide hidden (${hiddenCount})`
+        ? `Back to active (${activeCount})`
         : `Show hidden (${hiddenCount})`;
       tgl.classList.toggle('is-on', showHidden.invoices);
     } else {

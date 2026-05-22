@@ -806,14 +806,27 @@
 
 .admin-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 14px;
-  align-items: center;
   margin-bottom: 24px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--nvee-line);
   border-radius: 14px;
+}
+.admin-toolbar-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-toolbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 .admin-filter-row {
   display: flex;
@@ -866,41 +879,61 @@
 
 .admin-toolbar-search {
   display: flex;
-  gap: 8px;
-  margin-left: auto;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
+.admin-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.admin-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--nvee-text-dim);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+.admin-search-field:focus-within .admin-search-icon {
+  color: var(--nvee-blue-electric);
+}
 .admin-toolbar-search input[type="search"] {
-  padding: 8px 12px;
+  padding: 10px 14px 10px 36px;
   background: #161a2b;
   border: 1px solid var(--nvee-line);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--nvee-text);
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
-  min-width: 200px;
+  width: 280px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.admin-toolbar-search input[type="search"]::placeholder {
+  color: var(--nvee-text-dim);
 }
 .admin-toolbar-search input[type="search"]:focus {
   outline: none;
   border-color: var(--nvee-blue);
+  background: #1a1f33;
   box-shadow: 0 0 0 3px rgba(0, 180, 255, 0.18);
 }
-.admin-toolbar-search select {
-  padding: 8px 12px;
-  background: #161a2b;
-  border: 1px solid var(--nvee-line);
-  border-radius: 8px;
-  color: var(--nvee-text);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
+/* Constrain the nv-select sort widget so it doesn't expand to the full row */
+.admin-sort-field {
+  width: 200px;
+  flex-shrink: 0;
+}
+.admin-sort-field .nv-select-trigger {
+  padding: 10px 14px;
+  font-size: 14px;
 }
 .admin-toolbar-count {
-  width: 100%;
   font-size: 12px;
   color: var(--nvee-text-dim);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin-left: auto;
 }
 
 /* ============ COMPACT PRODUCT ROWS ============ */
@@ -1023,8 +1056,11 @@
     margin-top: 4px;
     flex-wrap: wrap;
   }
-  .admin-toolbar-search input[type="search"] { min-width: 0; flex: 1; }
-  .admin-toolbar-search { width: 100%; margin-left: 0; }
+  .admin-toolbar-controls { flex-direction: column; align-items: stretch; }
+  .admin-toolbar-search { width: 100%; }
+  .admin-toolbar-search input[type="search"] { width: 100%; }
+  .admin-sort-field { width: 100%; }
+  .admin-toolbar-count { margin-left: 0; text-align: left; }
 }
 
 /* ============================================================
