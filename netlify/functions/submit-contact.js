@@ -112,16 +112,12 @@ exports.handler = async (event) => {
     emailedError = 'WEB3FORMS_ACCESS_KEY env var missing';
   }
 
-  // Surface debug info so we can see what's happening from the browser.
-  return jsonResponse(200, {
-    success: true,
-    id,
-    debug: {
-      blobsModuleLoaded,
-      storedOk,
-      storedError,
-      emailedOk,
-      emailedError,
-    },
-  });
+  // Server-side logs capture all detail (see Netlify function logs). Client
+  // gets a minimal success ack — no internal status leakage.
+  if (!storedOk && !emailedOk) {
+    // Both delivery paths failed — surface a generic error so the form can show
+    // the user a retry message. The reasons are in the function logs.
+    return jsonResponse(500, { error: 'Could not deliver your message — please try again or email Veronica directly.' });
+  }
+  return jsonResponse(200, { success: true, id });
 };

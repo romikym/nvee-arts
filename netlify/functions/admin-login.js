@@ -1,10 +1,6 @@
 // POST /.netlify/functions/admin-login
 // Body: { password: "..." }
 // Returns: { token: "<JWT>" } on success, 401 on bad password.
-//
-// TEMP: while we debug the login mismatch, 401 responses always include
-// a `debug` object with non-secret length/hash-prefix info so we can spot
-// trailing-whitespace mismatches. Remove the debug block once login works.
 
 const crypto = require('crypto');
 const { signToken, corsHeaders, jsonResponse } = require('./_lib/auth');
@@ -26,23 +22,10 @@ exports.handler = async (event) => {
   const b = Buffer.from(adminPw);
   const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
   if (!ok) {
+    // Small delay slows brute-force. No detail returned — see Netlify function
+    // logs if you need to diagnose a real login problem.
     await new Promise(r => setTimeout(r, 400));
-    const submittedHash = crypto.createHash('sha256').update(submitted).digest('hex').slice(0, 8);
-    const configuredHash = crypto.createHash('sha256').update(adminPw).digest('hex').slice(0, 8);
-    return jsonResponse(401, {
-      error: 'Invalid password',
-      debug: {
-        submittedLength: submitted.length,
-        configuredLength: adminPw.length,
-        lengthsMatch: submitted.length === adminPw.length,
-        submittedSha256Prefix: submittedHash,
-        configuredSha256Prefix: configuredHash,
-        hashesMatch: submittedHash === configuredHash,
-        configuredStartsWithSpace: /^\s/.test(adminPw),
-        configuredEndsWithSpace: /\s$/.test(adminPw),
-        configuredHasNewline: /[\r\n]/.test(adminPw),
-      },
-    });
+    return jsonResponse(401, { error: 'Invalid password' });
   }
 
   const now = Math.floor(Date.now() / 1000);

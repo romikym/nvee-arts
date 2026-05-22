@@ -90,24 +90,7 @@ async function handleLogin(e) {
     try { data = await res.json(); } catch { /* non-JSON */ }
     if (!res.ok) {
       const baseMsg = data.error || `Login failed (HTTP ${res.status})`;
-      if (data.debug) {
-        const d = data.debug;
-        errEl.innerHTML = `
-          <strong>${baseMsg}</strong>
-          <div style="margin-top:8px; padding:10px 12px; background:rgba(255,77,94,0.08); border-radius:8px; font-family:ui-monospace,monospace; font-size:11px; line-height:1.6; color:#fff; text-align:left;">
-            submitted length: <strong>${d.submittedLength}</strong><br>
-            configured length: <strong>${d.configuredLength}</strong><br>
-            lengths match: <strong>${d.lengthsMatch}</strong><br>
-            submitted hash prefix: ${d.submittedSha256Prefix}<br>
-            configured hash prefix: ${d.configuredSha256Prefix}<br>
-            hashes match: <strong>${d.hashesMatch}</strong><br>
-            configured starts with whitespace: <strong>${d.configuredStartsWithSpace}</strong><br>
-            configured ends with whitespace: <strong>${d.configuredEndsWithSpace}</strong><br>
-            configured has newline: <strong>${d.configuredHasNewline}</strong>
-          </div>`;
-      } else {
-        errEl.textContent = baseMsg;
-      }
+      errEl.textContent = baseMsg;
       throw new Error(baseMsg);
     }
     setToken(data.token);
@@ -341,7 +324,7 @@ function renderOrderCard(o) {
       </div>
       <div class="admin-order-footer">
         ${o.receiptUrl ? `<a class="admin-link" href="${escapeHtml(o.receiptUrl)}" target="_blank" rel="noopener">View receipt ↗</a>` : ''}
-        <a class="admin-link" href="https://dashboard.stripe.com/test/payments/${escapeHtml(o.id)}" target="_blank" rel="noopener">Open in Stripe ↗</a>
+        <a class="admin-link" href="https://dashboard.stripe.com/payments/${escapeHtml(o.id)}" target="_blank" rel="noopener">Open in Stripe ↗</a>
       </div>
     </article>`;
 }
@@ -522,12 +505,12 @@ function renderInvoiceCard(inv) {
   const actions = [];
   if (inv.status === 'draft') {
     actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="edit" data-inv-id="${escapeHtml(inv.id)}">Edit</button>`);
-    actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="send" data-inv-id="${escapeHtml(inv.id)}">Finalize + send</button>`);
+    actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="send" data-inv-id="${escapeHtml(inv.id)}">Open in Stripe to send</button>`);
     actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="delete" data-inv-id="${escapeHtml(inv.id)}">Delete</button>`);
   } else if (inv.status === 'open') {
     actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="void" data-inv-id="${escapeHtml(inv.id)}">Delete</button>`);
   } else if (inv.status === 'paid') {
-    actions.push(`<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com/test/invoices/${escapeHtml(inv.id)}" target="_blank" rel="noopener">Refund in Stripe ↗</a>`);
+    actions.push(`<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com/invoices/${escapeHtml(inv.id)}" target="_blank" rel="noopener">Refund in Stripe ↗</a>`);
   }
 
   return `
@@ -690,7 +673,7 @@ async function handleInvoicesAction(e) {
       // Finalize + send a draft. We re-use the create endpoint logic via a quick update:
       // simplest path is to tell the user to use Stripe dashboard, OR open hosted page link.
       // For now, alert them to use the Stripe dashboard since we don't have a dedicated finalize endpoint.
-      const url = `https://dashboard.stripe.com/test/invoices/${id}`;
+      const url = `https://dashboard.stripe.com/invoices/${id}`;
       window.open(url, '_blank', 'noopener');
       showToast('Finalize from Stripe', 'Opened the invoice in Stripe — click "Finalize" then "Send".');
     }
@@ -1192,6 +1175,14 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#admin-logout').addEventListener('click', handleLogout);
   $$('.admin-tab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
+  // Hoist modal backdrops to <body> so their `position: fixed; inset: 0;`
+  // genuinely covers the full viewport. Without this, a backdrop-filter or
+  // transform on any ancestor creates a containing block that constrains
+  // the modal to the panel it lives inside.
+  document.querySelectorAll('.admin-modal-backdrop').forEach((m) => {
+    if (m.parentNode !== document.body) document.body.appendChild(m);
+  });
+
   // Dashboard quick actions + activity items
   const dashPanel = document.getElementById('panel-dashboard');
   if (dashPanel) dashPanel.addEventListener('click', handleQuickAction);
@@ -1226,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (getToken()) {
     showAdminShell();
   } else {
+    showLoginScreen();
     setTimeout(() => $('#admin-pw').focus(), 100);
   }
 });

@@ -1,8 +1,8 @@
 # Netlify configuration for NVee Arts.
 #
 # Deploys the static site from the repository root and bundles serverless
-# functions out of netlify/functions/. Stripe Checkout is created by
-# /.netlify/functions/create-checkout-session.
+# functions out of netlify/functions/. Stripe payments are handled by
+# /.netlify/functions/create-payment-intent.
 
 [build]
   publish = "."
@@ -19,11 +19,5 @@
   # causes "MissingBlobsEnvironmentError" at runtime.
   external_node_modules = ["@netlify/blobs"]
 
-# Tidy URL for the checkout endpoint (optional — the default
-# /.netlify/functions/create-checkout-session also works).
-[[redirects]]
-  from = "/api/checkout"
-  to = "/.netlify/functions/create-checkout-session"
-  status = 200
 
 # SPA-style fallback is not needed — this is a multi-page static site.

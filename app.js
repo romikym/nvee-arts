@@ -25,9 +25,26 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 const fmt = n => '$' + n.toFixed(0);
 const getProduct = id => PRODUCTS.find(p => p.id === id);
 
+// Update the collection filter pills and About stat with the current catalog counts.
+function updateCatalogCounts() {
+  const counts = { all: PRODUCTS.length };
+  for (const p of PRODUCTS) {
+    counts[p.collection] = (counts[p.collection] || 0) + 1;
+  }
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    const f = pill.dataset.filter;
+    const span = pill.querySelector('.filter-count');
+    if (span && counts[f] != null) span.textContent = counts[f];
+  });
+  const statEl = document.getElementById('stat-available-now');
+  if (statEl) statEl.textContent = PRODUCTS.length;
+}
+
 // PRODUCT GRID
 function renderProducts() {
   const grid = $('#products-grid');
+  // Update filter-pill counts + about-section "Available now" stat from live catalog.
+  updateCatalogCounts();
   const matches = PRODUCTS.filter(p => currentFilter === 'all' || p.collection === currentFilter);
   if (matches.length === 0) {
     grid.innerHTML = '<div class="empty-state"><h3>Nothing here yet</h3><p>Try another collection.</p></div>';
@@ -76,16 +93,24 @@ const cartShipping = () => cartLines().reduce(
 const cartTotal = () => cartSubtotal() + cartShipping();
 
 function addToCart(id, opts = {}) {
-  cart.set(id, (cart.get(id) || 0) + 1);
+  const p = getProduct(id);
+  if (!p) return;
+  // Each piece is one-of-one — can only be in the cart once.
+  if (cart.has(id)) {
+    if (!opts.silent) showToast('Already in cart', `${p.name} — only one of this piece exists`);
+    if (opts.openCart) openCart();
+    return;
+  }
+  cart.set(id, 1);
   renderCart();
   bumpCartCount();
-  const p = getProduct(id);
   if (!opts.silent) showToast('Added to cart', `${p.name} · ${fmt(p.price)}`);
   if (opts.openCart) openCart();
 }
 function setQty(id, qty) {
+  // One-of-one: qty can only be 0 (remove) or 1.
   if (qty <= 0) cart.delete(id);
-  else cart.set(id, qty);
+  else cart.set(id, 1);
   renderCart();
 }
 function bumpCartCount() {
@@ -114,14 +139,9 @@ function renderCart() {
         <div class="cart-item-body">
           <div class="cart-item-meta">${l.meta}</div>
           <div class="cart-item-name">${l.name}</div>
-          <div class="cart-item-detail">${fmt(l.price)} each</div>
+          <div class="cart-item-detail">One of one · ${fmt(l.price)}</div>
           <div class="cart-item-row">
-            <div class="qty-stepper">
-              <button onclick="setQty('${l.id}', ${l.qty - 1})">−</button>
-              <span>${l.qty}</span>
-              <button onclick="setQty('${l.id}', ${l.qty + 1})">+</button>
-            </div>
-            <div class="cart-item-price">${fmt(l.price * l.qty)}</div>
+            <div class="cart-item-price">${fmt(l.price)}</div>
           </div>
           <button class="cart-item-remove" onclick="setQty('${l.id}', 0)">Remove</button>
         </div>
@@ -478,9 +498,14 @@ async function init() {
     const product = e.target.closest('.product');
     if (product) openProductModal(product.dataset.id);
   });
-  $('.hero-visual')?.addEventListener('click', () => openProductModal('raiders'));
+  $('.hero-visual')?.addEventListener('click', () => {
+    if (getProduct('raiders')) openProductModal('raiders');
+    else $('#shop')?.scrollIntoView({ behavior: 'smooth' });
+  });
   $$('.studio-tile').forEach(tile => tile.addEventListener('click', () => {
-    if (tile.dataset.productId) openProductModal(tile.dataset.productId);
+    const id = tile.dataset.productId;
+    if (id && getProduct(id)) openProductModal(id);
+    else $('#shop')?.scrollIntoView({ behavior: 'smooth' });
   }));
   $('#newsletter-form').addEventListener('submit', e => {
     e.preventDefault();
