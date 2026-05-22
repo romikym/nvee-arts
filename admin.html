@@ -154,6 +154,7 @@
         <div class="admin-panel-stats" id="orders-stats">
           <div class="admin-stat"><div class="admin-stat-num" id="orders-count">—</div><div class="admin-stat-label">orders</div></div>
           <div class="admin-stat"><div class="admin-stat-num" id="orders-revenue">—</div><div class="admin-stat-label">revenue</div></div>
+          <button class="admin-hidden-toggle" id="orders-hidden-toggle" hidden type="button"></button>
         </div>
       </div>
       <div class="admin-loading" id="orders-loading">Loading orders…</div>
@@ -201,7 +202,10 @@
           <div class="admin-eyebrow">Invoices</div>
           <h1 class="admin-title">Send a custom <span class="italic">invoice.</span></h1>
         </div>
-        <button class="btn btn-primary admin-new-invoice-btn" id="open-new-invoice">+ New invoice</button>
+        <div class="admin-invoice-header-actions">
+          <button class="admin-hidden-toggle" id="invoices-hidden-toggle" hidden type="button"></button>
+          <button class="btn btn-primary admin-new-invoice-btn" id="open-new-invoice">+ New invoice</button>
+        </div>
       </div>
 
       <div class="admin-new-invoice" id="new-invoice-card" hidden>
@@ -491,6 +495,7 @@
 
 <div class="toast-container" id="toast-container"></div>
 
+<script src="nv-select.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

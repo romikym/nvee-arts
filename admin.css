@@ -1613,3 +1613,45 @@ label.prod-dropzone-replace {
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
 }
+
+
+/* ============================================================
+   Hidden-items toggle + Hide/Refund action buttons
+   ============================================================ */
+
+.admin-hidden-toggle {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--nvee-line);
+  border-radius: 999px;
+  color: var(--nvee-text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.admin-hidden-toggle:hover {
+  background: rgba(0, 180, 255, 0.08);
+  color: var(--nvee-text);
+  border-color: rgba(0, 180, 255, 0.35);
+}
+.admin-hidden-toggle.is-on {
+  background: rgba(0, 180, 255, 0.12);
+  color: var(--nvee-blue-electric);
+  border-color: var(--nvee-blue);
+}
+
+.admin-invoice-header-actions {
+  display: flex; align-items: center; gap: 10px;
+}
+
+.admin-order.is-hidden,
+.admin-invoice.is-hidden {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.admin-order-actions,
+.admin-invoice-actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px;
+}

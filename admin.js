@@ -90,6 +90,39 @@ function showToast(title, sub = '') {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
 }
 
+// ============ Hidden items (admin-side filter) ============
+const hiddenIds = { orders: new Set(), invoices: new Set() };
+const showHidden = { orders: false, invoices: false };
+
+async function loadHiddenLists() {
+  try {
+    const data = await apiFetch('/.netlify/functions/admin-hidden-list');
+    hiddenIds.orders = new Set(data.orders || []);
+    hiddenIds.invoices = new Set(data.invoices || []);
+  } catch (err) {
+    // Non-fatal — if this fails, nothing gets filtered and the tabs still work.
+    console.warn('Could not load hidden lists:', err.message);
+  }
+}
+
+async function toggleHidden(kind, id, action) {
+  const data = await apiFetch('/.netlify/functions/admin-hidden-update', {
+    method: 'POST',
+    body: JSON.stringify({ kind, id, action }),
+  });
+  hiddenIds.orders = new Set(data.orders || []);
+  hiddenIds.invoices = new Set(data.invoices || []);
+}
+
+async function issueRefund(kind, id, amountCents) {
+  const body = { kind, id };
+  if (amountCents != null) body.amountCents = amountCents;
+  return apiFetch('/.netlify/functions/admin-refund', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 function showLoginScreen() {
   $('#admin-login-screen').hidden = false;
   $('#admin-shell').hidden = true;
@@ -97,6 +130,7 @@ function showLoginScreen() {
 function showAdminShell() {
   $('#admin-login-screen').hidden = true;
   $('#admin-shell').hidden = false;
+  loadHiddenLists();
   switchTab('dashboard');
   refreshContactBadge();
 }
@@ -295,6 +329,7 @@ function handleQuickAction(e) {
 }
 
 // ============ ORDERS ============
+let allOrdersCache = [];
 async function loadOrders() {
   $('#orders-loading').hidden = false;
   $('#orders-empty').hidden = true;
@@ -302,21 +337,44 @@ async function loadOrders() {
   try {
     const data = await apiFetch('/.netlify/functions/admin-orders?limit=100');
     $('#orders-loading').hidden = true;
-    const orders = data.orders || [];
-    if (orders.length === 0) {
-      $('#orders-empty').hidden = false;
-      $('#orders-count').textContent = '0';
-      $('#orders-revenue').textContent = '$0';
-      return;
-    }
-    const totalCents = orders.reduce((a, o) => a + (o.amount - (o.amountRefunded || 0)), 0);
-    $('#orders-count').textContent = orders.length;
-    $('#orders-revenue').textContent = fmtUSD(totalCents);
-    $('#orders-list').innerHTML = orders.map(renderOrderCard).join('');
+    allOrdersCache = data.orders || [];
+    renderOrdersList();
   } catch (err) {
     $('#orders-loading').hidden = true;
     showToast('Could not load orders', err.message);
   }
+}
+
+function renderOrdersList() {
+  const all = allOrdersCache;
+  const visible = showHidden.orders ? all : all.filter(o => !hiddenIds.orders.has(o.id));
+  const hiddenCount = all.filter(o => hiddenIds.orders.has(o.id)).length;
+
+  // Update the "Show hidden" toggle visibility + label
+  const tgl = document.getElementById('orders-hidden-toggle');
+  if (tgl) {
+    if (hiddenCount > 0) {
+      tgl.hidden = false;
+      tgl.textContent = showHidden.orders
+        ? `Hide hidden (${hiddenCount})`
+        : `Show hidden (${hiddenCount})`;
+      tgl.classList.toggle('is-on', showHidden.orders);
+    } else {
+      tgl.hidden = true;
+    }
+  }
+
+  if (visible.length === 0) {
+    $('#orders-empty').hidden = false;
+    $('#orders-count').textContent = '0';
+    $('#orders-revenue').textContent = '$0';
+    return;
+  }
+  $('#orders-empty').hidden = true;
+  const totalCents = visible.reduce((a, o) => a + (o.amount - (o.amountRefunded || 0)), 0);
+  $('#orders-count').textContent = visible.length;
+  $('#orders-revenue').textContent = fmtUSD(totalCents);
+  $('#orders-list').innerHTML = visible.map(renderOrderCard).join('');
 }
 function renderOrderCard(o) {
   const refundBadge = o.refunded ? '<span class="admin-badge refunded">Refunded</span>' : '';
@@ -328,8 +386,9 @@ function renderOrderCard(o) {
       ${o.shipping.phone ? '☎ ' + escapeHtml(o.shipping.phone) : ''}
     </div>` : '<div class="admin-order-ship admin-muted">No shipping address</div>';
   const cartIds = o.metadata.cart_ids ? o.metadata.cart_ids.split(',').map((id) => `<span class="admin-cart-pill">${escapeHtml(id)}</span>`).join('') : '';
+  const isHidden = hiddenIds.orders.has(o.id);
   return `
-    <article class="admin-order">
+    <article class="admin-order${isHidden ? ' is-hidden' : ''}">
       <div class="admin-order-head">
         <div>
           <div class="admin-order-id">${escapeHtml(o.id)}</div>
@@ -358,8 +417,44 @@ function renderOrderCard(o) {
       <div class="admin-order-footer">
         ${o.receiptUrl ? `<a class="admin-link" href="${escapeHtml(o.receiptUrl)}" target="_blank" rel="noopener">View receipt ↗</a>` : ''}
         <a class="admin-link" href="https://dashboard.stripe.com/payments/${escapeHtml(o.id)}" target="_blank" rel="noopener">Open in Stripe ↗</a>
+        <div class="admin-order-actions">
+          ${o.refunded
+            ? ''
+            : `<button class="btn btn-ghost btn-sm admin-danger" data-order-action="refund" data-order-id="${escapeHtml(o.id)}" data-order-amount="${o.amount}">Refund $${(o.amount/100).toFixed(2)}</button>`}
+          ${hiddenIds.orders.has(o.id)
+            ? `<button class="btn btn-ghost btn-sm" data-order-action="unhide" data-order-id="${escapeHtml(o.id)}">Unhide</button>`
+            : `<button class="btn btn-ghost btn-sm" data-order-action="hide" data-order-id="${escapeHtml(o.id)}">Hide</button>`}
+        </div>
       </div>
     </article>`;
+}
+
+
+
+async function handleOrdersAction(e) {
+  const btn = e.target.closest('[data-order-action]');
+  if (!btn) return;
+  const action = btn.dataset.orderAction;
+  const id = btn.dataset.orderId;
+  try {
+    if (action === 'hide' || action === 'unhide') {
+      await toggleHidden('order', id, action);
+      showToast(action === 'hide' ? 'Order hidden' : 'Order unhidden');
+      renderOrdersList();
+    } else if (action === 'refund') {
+      const amount = (Number(btn.dataset.orderAmount) / 100).toFixed(2);
+      const confirmMsg = `Refund $${amount} back to the customer's card?\n\nThis cannot be undone. The order will also be hidden from this view (you can unhide it later).`;
+      if (!confirm(confirmMsg)) return;
+      btn.disabled = true; btn.textContent = 'Refunding…';
+      await issueRefund('order', id);
+      // After successful refund, hide it from the active view
+      await toggleHidden('order', id, 'hide').catch(() => { /* non-fatal */ });
+      showToast('Refund issued', '$' + amount + ' returned to the customer');
+      await loadOrders();
+    }
+  } catch (err) {
+    showToast('Action failed', err.message);
+  }
 }
 
 // ============ CUSTOMERS ============
@@ -515,17 +610,38 @@ async function loadInvoices() {
   try {
     const data = await apiFetch('/.netlify/functions/admin-invoices-list?limit=100');
     $('#invoices-loading').hidden = true;
-    const invoices = data.invoices || [];
-    allInvoicesCache = invoices;
-    if (invoices.length === 0) {
-      $('#invoices-empty').hidden = false;
-      return;
-    }
-    $('#invoices-list').innerHTML = invoices.map(renderInvoiceCard).join('');
+    allInvoicesCache = data.invoices || [];
+    renderInvoicesList();
   } catch (err) {
     $('#invoices-loading').hidden = true;
     showToast('Could not load invoices', err.message);
   }
+}
+
+function renderInvoicesList() {
+  const all = allInvoicesCache;
+  const visible = showHidden.invoices ? all : all.filter(i => !hiddenIds.invoices.has(i.id));
+  const hiddenCount = all.filter(i => hiddenIds.invoices.has(i.id)).length;
+
+  const tgl = document.getElementById('invoices-hidden-toggle');
+  if (tgl) {
+    if (hiddenCount > 0) {
+      tgl.hidden = false;
+      tgl.textContent = showHidden.invoices
+        ? `Hide hidden (${hiddenCount})`
+        : `Show hidden (${hiddenCount})`;
+      tgl.classList.toggle('is-on', showHidden.invoices);
+    } else {
+      tgl.hidden = true;
+    }
+  }
+
+  if (visible.length === 0) {
+    $('#invoices-empty').hidden = false;
+    return;
+  }
+  $('#invoices-empty').hidden = true;
+  $('#invoices-list').innerHTML = visible.map(renderInvoiceCard).join('');
 }
 
 function renderInvoiceCard(inv) {
@@ -543,11 +659,19 @@ function renderInvoiceCard(inv) {
   } else if (inv.status === 'open') {
     actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="void" data-inv-id="${escapeHtml(inv.id)}">Delete</button>`);
   } else if (inv.status === 'paid') {
-    actions.push(`<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com/invoices/${escapeHtml(inv.id)}" target="_blank" rel="noopener">Refund in Stripe ↗</a>`);
+    actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="refund" data-inv-id="${escapeHtml(inv.id)}" data-inv-amount="${inv.amountDue}">Refund $${(inv.amountDue/100).toFixed(2)}</button>`);
+    actions.push(`<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com/invoices/${escapeHtml(inv.id)}" target="_blank" rel="noopener">Open in Stripe ↗</a>`);
+  }
+  // Hide / Unhide is available for every invoice regardless of status
+  if (hiddenIds.invoices.has(inv.id)) {
+    actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="unhide" data-inv-id="${escapeHtml(inv.id)}">Unhide</button>`);
+  } else {
+    actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="hide" data-inv-id="${escapeHtml(inv.id)}">Hide</button>`);
   }
 
+  const isHidden = hiddenIds.invoices.has(inv.id);
   return `
-    <article class="admin-invoice">
+    <article class="admin-invoice${isHidden ? ' is-hidden' : ''}">
       <div class="admin-invoice-head">
         <div>
           <div class="admin-invoice-num">${escapeHtml(inv.number)}</div>
@@ -686,6 +810,19 @@ async function handleInvoicesAction(e) {
   try {
     if (action === 'edit') {
       openInvoiceEditModal(inv);
+    } else if (action === 'hide' || action === 'unhide') {
+      await toggleHidden('invoice', id, action);
+      showToast(action === 'hide' ? 'Invoice hidden' : 'Invoice unhidden');
+      renderInvoicesList();
+    } else if (action === 'refund') {
+      const amount = (Number(btn.dataset.invAmount) / 100).toFixed(2);
+      const confirmMsg = `Refund $${amount} for invoice ${inv.number}?\n\nThis cannot be undone. The invoice will also be hidden from this view (you can unhide it later).`;
+      if (!confirm(confirmMsg)) return;
+      btn.disabled = true; btn.textContent = 'Refunding…';
+      await issueRefund('invoice', id);
+      await toggleHidden('invoice', id, 'hide').catch(() => { /* non-fatal */ });
+      showToast('Refund issued', '$' + amount + ' returned to the customer');
+      await loadInvoices();
     } else if (action === 'delete') {
       if (!confirm(`Permanently delete draft invoice ${inv.number}?`)) return;
       await apiFetch('/.netlify/functions/admin-invoices-delete', {
@@ -1235,6 +1372,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Contact
   $('#contact-list').addEventListener('click', handleContactAction);
+
+  // Orders (Hide / Unhide / Refund)
+  $('#orders-list').addEventListener('click', handleOrdersAction);
+  $('#orders-hidden-toggle').addEventListener('click', () => {
+    showHidden.orders = !showHidden.orders;
+    renderOrdersList();
+  });
+  $('#invoices-hidden-toggle').addEventListener('click', () => {
+    showHidden.invoices = !showHidden.invoices;
+    renderInvoicesList();
+  });
 
   // Products
   $('#products-list-admin').addEventListener('click', handleProductsAction);
