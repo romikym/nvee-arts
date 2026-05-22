@@ -675,7 +675,7 @@ function renderProductCard(p) {
       </div>
       <div class="admin-product-actions-row">
         <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${escapeHtml(p.id)}">Edit</button>
-        <button class="btn btn-ghost btn-sm" data-action="toggle-sold" data-id="${escapeHtml(p.id)}">${p.soldOut ? 'Mark available' : 'Mark sold'}</button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-sold" data-id="${escapeHtml(p.id)}">${p.soldOut ? 'Available' : 'Sold out'}</button>
         <button class="btn btn-ghost btn-sm admin-danger" data-action="delete" data-id="${escapeHtml(p.id)}">Delete</button>
       </div>
     </article>`;
@@ -843,7 +843,7 @@ async function handleProductsAction(e) {
         method: 'POST',
         body: JSON.stringify(updated),
       });
-      showToast(updated.soldOut ? 'Marked sold' : 'Marked available', product.name);
+      showToast(updated.soldOut ? 'Marked as sold out' : 'Marked as available', product.name);
       await loadProductsAdmin();
     } else if (action === 'delete') {
       if (!confirm('Permanently delete this piece? This cannot be undone.')) return;
