@@ -1,5 +1,5 @@
 // ============ NVee Arts Admin ============
-// Single-page admin for orders, customers, and invoices.
+// Single-page admin for orders, customers, contact messages, invoices, products.
 // Auth: custom JWT issued by /.netlify/functions/admin-login.
 
 const TOKEN_STORAGE_KEY = 'nvee-admin-token';
@@ -7,9 +7,8 @@ const TOKEN_STORAGE_KEY = 'nvee-admin-token';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-function fmtUSD(cents) {
-  return '$' + (cents / 100).toFixed(2);
-}
+function fmtUSD(cents) { return '$' + (cents / 100).toFixed(2); }
+function fmtUSDPlain(dollars) { return '$' + Number(dollars).toFixed(0); }
 function fmtDate(unixSec) {
   if (!unixSec) return '—';
   const d = new Date(unixSec * 1000);
@@ -18,6 +17,11 @@ function fmtDate(unixSec) {
 function fmtDateTime(unixSec) {
   if (!unixSec) return '—';
   const d = new Date(unixSec * 1000);
+  return d.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+function fmtISO(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
   return d.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 function escapeHtml(s) {
@@ -44,7 +48,6 @@ async function apiFetch(path, opts = {}) {
   return data;
 }
 
-// ============ TOAST ============
 function showToast(title, sub = '') {
   const container = $('#toast-container');
   if (!container) return;
@@ -58,7 +61,6 @@ function showToast(title, sub = '') {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
 }
 
-// ============ LOGIN ============
 function showLoginScreen() {
   $('#admin-login-screen').hidden = false;
   $('#admin-shell').hidden = true;
@@ -67,6 +69,7 @@ function showAdminShell() {
   $('#admin-login-screen').hidden = true;
   $('#admin-shell').hidden = false;
   switchTab('orders');
+  refreshContactBadge();
 }
 
 async function handleLogin(e) {
@@ -125,15 +128,17 @@ function handleLogout() {
   showToast('Signed out');
 }
 
-// ============ TABS ============
 function switchTab(name) {
   $$('.admin-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  ['orders', 'customers', 'invoices'].forEach((t) => {
-    $('#panel-' + t).hidden = t !== name;
+  ['orders', 'customers', 'contact', 'invoices', 'products'].forEach((t) => {
+    const panel = document.getElementById('panel-' + t);
+    if (panel) panel.hidden = t !== name;
   });
   if (name === 'orders') loadOrders();
   if (name === 'customers') loadCustomers();
+  if (name === 'contact') loadContact();
   if (name === 'invoices') loadInvoices();
+  if (name === 'products') loadProductsAdmin();
 }
 
 // ============ ORDERS ============
@@ -160,7 +165,6 @@ async function loadOrders() {
     showToast('Could not load orders', err.message);
   }
 }
-
 function renderOrderCard(o) {
   const refundBadge = o.refunded ? '<span class="admin-badge refunded">Refunded</span>' : '';
   const shipping = o.shipping ? `
@@ -225,7 +229,6 @@ async function loadCustomers() {
     showToast('Could not load customers', err.message);
   }
 }
-
 function renderCustomerCard(c) {
   return `
     <article class="admin-customer">
@@ -242,6 +245,111 @@ function renderCustomerCard(c) {
         <div class="admin-customer-spent-label">total spent</div>
       </div>
     </article>`;
+}
+
+// ============ CONTACT MESSAGES ============
+async function loadContact() {
+  $('#contact-loading').hidden = false;
+  $('#contact-empty').hidden = true;
+  $('#contact-list').innerHTML = '';
+  try {
+    const data = await apiFetch('/.netlify/functions/admin-contact-list');
+    $('#contact-loading').hidden = true;
+    const submissions = data.submissions || [];
+    const unread = submissions.filter(s => !s.read).length;
+    $('#contact-unread').textContent = unread;
+    $('#contact-total').textContent = submissions.length;
+    updateContactBadge(unread);
+    if (submissions.length === 0) {
+      $('#contact-empty').hidden = false;
+      return;
+    }
+    $('#contact-list').innerHTML = submissions.map(renderContactCard).join('');
+  } catch (err) {
+    $('#contact-loading').hidden = true;
+    showToast('Could not load messages', err.message);
+  }
+}
+function renderContactCard(s) {
+  const extras = [];
+  if (s.phone) extras.push(`Phone: ${escapeHtml(s.phone)}`);
+  if (s.budget) extras.push(`Budget: ${escapeHtml(s.budget)}`);
+  if (s.size) extras.push(`Size: ${escapeHtml(s.size)}`);
+  const extrasHtml = extras.length ? `<div class="admin-contact-extras">${extras.join(' · ')}</div>` : '';
+  const repliedBadge = s.replied ? '<span class="admin-badge paid">Replied</span>' : '';
+  const unreadBadge = !s.read ? '<span class="admin-badge open">Unread</span>' : '';
+  return `
+    <article class="admin-contact-item ${s.read ? '' : 'unread'}" data-id="${escapeHtml(s.id)}">
+      <div class="admin-contact-head">
+        <div>
+          <div class="admin-contact-meta">${escapeHtml(s.topicLabel || s.topic || 'General')} · ${fmtISO(s.createdAt)}</div>
+          <div class="admin-contact-from"><strong>${escapeHtml(s.name)}</strong> · <a class="admin-link" href="mailto:${escapeHtml(s.email)}">${escapeHtml(s.email)}</a></div>
+          ${extrasHtml}
+        </div>
+        <div class="admin-contact-status">
+          ${unreadBadge}
+          ${repliedBadge}
+        </div>
+      </div>
+      <div class="admin-contact-message">${escapeHtml(s.message).replace(/\n/g, '<br>')}</div>
+      <div class="admin-contact-actions">
+        <a class="btn btn-ghost btn-sm" href="mailto:${escapeHtml(s.email)}?subject=Re: NVee Arts inquiry">Reply via email</a>
+        <button class="btn btn-ghost btn-sm admin-contact-toggle" data-action="toggle-read" data-id="${escapeHtml(s.id)}" data-current="${s.read}">
+          Mark ${s.read ? 'unread' : 'read'}
+        </button>
+        <button class="btn btn-ghost btn-sm admin-contact-toggle" data-action="toggle-replied" data-id="${escapeHtml(s.id)}" data-current="${s.replied}">
+          Mark ${s.replied ? 'unreplied' : 'replied'}
+        </button>
+        <button class="btn btn-ghost btn-sm admin-danger" data-action="delete" data-id="${escapeHtml(s.id)}">Delete</button>
+      </div>
+    </article>`;
+}
+async function handleContactAction(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  const current = btn.dataset.current === 'true';
+  try {
+    if (action === 'delete') {
+      if (!confirm('Permanently delete this message?')) return;
+      await apiFetch('/.netlify/functions/admin-contact-update', {
+        method: 'POST',
+        body: JSON.stringify({ id, delete: true }),
+      });
+      showToast('Message deleted');
+    } else if (action === 'toggle-read') {
+      await apiFetch('/.netlify/functions/admin-contact-update', {
+        method: 'POST',
+        body: JSON.stringify({ id, read: !current }),
+      });
+    } else if (action === 'toggle-replied') {
+      await apiFetch('/.netlify/functions/admin-contact-update', {
+        method: 'POST',
+        body: JSON.stringify({ id, replied: !current }),
+      });
+    }
+    loadContact();
+  } catch (err) {
+    showToast('Action failed', err.message);
+  }
+}
+async function refreshContactBadge() {
+  try {
+    const data = await apiFetch('/.netlify/functions/admin-contact-list');
+    const unread = (data.submissions || []).filter(s => !s.read).length;
+    updateContactBadge(unread);
+  } catch { /* ignore */ }
+}
+function updateContactBadge(count) {
+  const b = $('#contact-badge');
+  if (!b) return;
+  if (count > 0) {
+    b.textContent = count;
+    b.hidden = false;
+  } else {
+    b.hidden = true;
+  }
 }
 
 // ============ INVOICES ============
@@ -263,14 +371,10 @@ async function loadInvoices() {
     showToast('Could not load invoices', err.message);
   }
 }
-
 function renderInvoiceCard(inv) {
   const statusColor = {
-    paid: 'paid',
-    open: 'open',
-    draft: 'draft',
-    void: 'voided',
-    uncollectible: 'voided',
+    paid: 'paid', open: 'open', draft: 'draft',
+    void: 'voided', uncollectible: 'voided',
   }[inv.status] || '';
   return `
     <article class="admin-invoice">
@@ -294,8 +398,6 @@ function renderInvoiceCard(inv) {
       </div>
     </article>`;
 }
-
-// New invoice flow
 function toggleNewInvoiceCard(show) {
   const card = $('#new-invoice-card');
   card.hidden = !show;
@@ -305,7 +407,6 @@ function toggleNewInvoiceCard(show) {
     $('#inv-success').hidden = true;
   }
 }
-
 async function handleCreateInvoice(e) {
   e.preventDefault();
   const errEl = $('#inv-error');
@@ -344,13 +445,161 @@ async function handleCreateInvoice(e) {
   }
 }
 
+// ============ PRODUCTS ============
+async function loadProductsAdmin() {
+  $('#products-loading').hidden = false;
+  $('#products-empty').hidden = true;
+  $('#products-list-admin').innerHTML = '';
+  try {
+    const data = await apiFetch('/.netlify/functions/admin-products-list');
+    $('#products-loading').hidden = true;
+    const products = data.products || [];
+    if (products.length === 0) {
+      $('#products-empty').hidden = false;
+      return;
+    }
+    $('#products-list-admin').innerHTML = products.map(renderProductCard).join('');
+  } catch (err) {
+    $('#products-loading').hidden = true;
+    showToast('Could not load products', err.message);
+  }
+}
+function renderProductCard(p) {
+  const soldBadge = p.soldOut ? '<span class="admin-badge voided">Sold</span>' : '';
+  const tagBadge = p.tag ? `<span class="admin-badge open">${escapeHtml(p.tag)}</span>` : '';
+  return `
+    <article class="admin-product-card ${p.soldOut ? 'sold' : ''}" data-id="${escapeHtml(p.id)}">
+      <div class="admin-product-img">
+        <img src="${escapeHtml(p.image || '')}" alt="${escapeHtml(p.name)}" onerror="this.style.opacity=0.3" />
+      </div>
+      <div class="admin-product-body">
+        <div class="admin-product-row">
+          <strong>${escapeHtml(p.name)}</strong>
+          <span class="admin-product-price">${fmtUSDPlain(p.price)}</span>
+        </div>
+        <div class="admin-product-meta">${escapeHtml(p.meta || '')} · <code>${escapeHtml(p.id)}</code></div>
+        <div class="admin-product-badges">${soldBadge}${tagBadge}</div>
+      </div>
+      <div class="admin-product-actions">
+        <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${escapeHtml(p.id)}">Edit</button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-sold" data-id="${escapeHtml(p.id)}">${p.soldOut ? 'Mark available' : 'Mark sold'}</button>
+        <button class="btn btn-ghost btn-sm admin-danger" data-action="delete" data-id="${escapeHtml(p.id)}">Delete</button>
+      </div>
+    </article>`;
+}
+let allProductsCache = [];
+async function fetchAllProducts() {
+  const data = await apiFetch('/.netlify/functions/admin-products-list');
+  allProductsCache = data.products || [];
+  return allProductsCache;
+}
+function openProductModal(mode, product) {
+  $('#product-mode').value = mode;
+  $('#product-modal-title').textContent = mode === 'new' ? 'New product' : 'Edit product';
+  $('#product-form-error').textContent = '';
+  const p = product || {};
+  $('#prod-id').value = p.id || '';
+  $('#prod-id').readOnly = mode === 'edit';
+  $('#prod-name').value = p.name || '';
+  $('#prod-price').value = p.price ?? '';
+  $('#prod-collection').value = p.collection || 'signature';
+  $('#prod-image').value = p.image || '';
+  $('#prod-meta').value = p.meta || '';
+  $('#prod-tag').value = p.tag || '';
+  $('#prod-detail').value = p.detail || '';
+  $('#prod-description').value = p.description || '';
+  $('#prod-spec-size').value = (p.specs && p.specs.Size) || '';
+  $('#prod-spec-medium').value = (p.specs && p.specs.Medium) || '';
+  $('#prod-spec-year').value = (p.specs && p.specs.Year) || '';
+  $('#prod-spec-edition').value = (p.specs && p.specs.Edition) || '';
+  $('#prod-sold-out').checked = !!p.soldOut;
+  $('#product-modal').hidden = false;
+  setTimeout(() => $('#prod-name').focus(), 50);
+}
+function closeProductModal() {
+  $('#product-modal').hidden = true;
+}
+async function handleProductsAction(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  try {
+    if (action === 'edit') {
+      if (!allProductsCache.length) await fetchAllProducts();
+      const product = allProductsCache.find(p => p.id === id);
+      openProductModal('edit', product);
+    } else if (action === 'toggle-sold') {
+      if (!allProductsCache.length) await fetchAllProducts();
+      const product = allProductsCache.find(p => p.id === id);
+      if (!product) throw new Error('Product not found in cache');
+      product.soldOut = !product.soldOut;
+      await apiFetch('/.netlify/functions/admin-products-save', {
+        method: 'POST',
+        body: JSON.stringify(product),
+      });
+      showToast(product.soldOut ? 'Marked sold' : 'Marked available');
+      await fetchAllProducts();
+      loadProductsAdmin();
+    } else if (action === 'delete') {
+      if (!confirm('Permanently delete this product? This cannot be undone.')) return;
+      await apiFetch('/.netlify/functions/admin-products-delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+      showToast('Product deleted');
+      await fetchAllProducts();
+      loadProductsAdmin();
+    }
+  } catch (err) {
+    showToast('Action failed', err.message);
+  }
+}
+async function handleProductFormSubmit(e) {
+  e.preventDefault();
+  const errEl = $('#product-form-error');
+  errEl.textContent = '';
+  const product = {
+    id: $('#prod-id').value.trim(),
+    name: $('#prod-name').value.trim(),
+    price: parseFloat($('#prod-price').value),
+    collection: $('#prod-collection').value,
+    image: $('#prod-image').value.trim(),
+    meta: $('#prod-meta').value.trim(),
+    tag: $('#prod-tag').value.trim(),
+    tagClass: '', // back-compat with existing renderer
+    detail: $('#prod-detail').value.trim(),
+    description: $('#prod-description').value.trim(),
+    specs: {
+      Size: $('#prod-spec-size').value.trim(),
+      Medium: $('#prod-spec-medium').value.trim(),
+      Year: $('#prod-spec-year').value.trim(),
+      Edition: $('#prod-spec-edition').value.trim(),
+    },
+    soldOut: $('#prod-sold-out').checked,
+  };
+  if (!product.id || !product.name || isNaN(product.price)) {
+    errEl.textContent = 'ID, name, and price are required.';
+    return;
+  }
+  try {
+    await apiFetch('/.netlify/functions/admin-products-save', {
+      method: 'POST',
+      body: JSON.stringify(product),
+    });
+    showToast('Saved', product.name);
+    closeProductModal();
+    await fetchAllProducts();
+    loadProductsAdmin();
+  } catch (err) {
+    errEl.textContent = err.message || 'Save failed';
+  }
+}
+
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', () => {
-  // Login
   $('#admin-login-form').addEventListener('submit', handleLogin);
   $('#admin-logout').addEventListener('click', handleLogout);
-
-  // Tabs
   $$('.admin-tab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
   // Invoices
@@ -358,7 +607,19 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#cancel-new-invoice').addEventListener('click', () => toggleNewInvoiceCard(false));
   $('#new-invoice-form').addEventListener('submit', handleCreateInvoice);
 
-  // Decide which view to show
+  // Contact
+  $('#contact-list').addEventListener('click', handleContactAction);
+
+  // Products
+  $('#products-list-admin').addEventListener('click', handleProductsAction);
+  $('#open-new-product').addEventListener('click', () => openProductModal('new', null));
+  $('#product-modal-close').addEventListener('click', closeProductModal);
+  $('#product-form-cancel').addEventListener('click', closeProductModal);
+  $('#product-form').addEventListener('submit', handleProductFormSubmit);
+  $('#product-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'product-modal') closeProductModal();
+  });
+
   if (getToken()) {
     showAdminShell();
   } else {

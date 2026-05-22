@@ -20,7 +20,7 @@
       <span class="brand-logo"><span>NV</span></span>
       <span class="admin-login-brand-text">NVee Arts <span class="italic">admin.</span></span>
     </div>
-    <p class="admin-login-sub">Sign in to manage orders, customers, and invoices.</p>
+    <p class="admin-login-sub">Sign in to manage orders, customers, contact messages, and products.</p>
     <form id="admin-login-form" class="admin-login-form">
       <div class="field">
         <label for="admin-pw">Password</label>
@@ -54,7 +54,9 @@
     <nav class="admin-tabs">
       <button class="admin-tab active" data-tab="orders">Orders</button>
       <button class="admin-tab" data-tab="customers">Customers</button>
+      <button class="admin-tab" data-tab="contact">Messages <span class="admin-tab-badge" id="contact-badge" hidden>0</span></button>
       <button class="admin-tab" data-tab="invoices">Invoices</button>
+      <button class="admin-tab" data-tab="products">Products</button>
     </nav>
     <div class="admin-nav-actions">
       <a href="/" class="admin-nav-link">View shop ↗</a>
@@ -97,6 +99,23 @@
       <div class="admin-list" id="customers-list"></div>
     </section>
 
+    <!-- CONTACT MESSAGES TAB -->
+    <section class="admin-panel" id="panel-contact" hidden>
+      <div class="admin-panel-header">
+        <div>
+          <div class="admin-eyebrow">Messages</div>
+          <h1 class="admin-title">Contact <span class="italic">submissions.</span></h1>
+        </div>
+        <div class="admin-panel-stats">
+          <div class="admin-stat"><div class="admin-stat-num" id="contact-unread">—</div><div class="admin-stat-label">unread</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" id="contact-total">—</div><div class="admin-stat-label">total</div></div>
+        </div>
+      </div>
+      <div class="admin-loading" id="contact-loading">Loading messages…</div>
+      <div class="admin-empty" id="contact-empty" hidden>No messages yet. When someone fills out the contact form they'll appear here.</div>
+      <div class="admin-list" id="contact-list"></div>
+    </section>
+
     <!-- INVOICES TAB -->
     <section class="admin-panel" id="panel-invoices" hidden>
       <div class="admin-panel-header">
@@ -107,7 +126,6 @@
         <button class="btn btn-primary admin-new-invoice-btn" id="open-new-invoice">+ New invoice</button>
       </div>
 
-      <!-- New invoice form (collapsed by default) -->
       <div class="admin-new-invoice" id="new-invoice-card" hidden>
         <h3>Create + send invoice</h3>
         <p class="admin-help">Use this for commissions, custom prices, or anything outside the shop. Stripe will email the buyer a hosted invoice they can pay with a card.</p>
@@ -148,6 +166,114 @@
       <div class="admin-loading" id="invoices-loading">Loading invoices…</div>
       <div class="admin-empty" id="invoices-empty" hidden>No invoices yet. Click "+ New invoice" to send one.</div>
       <div class="admin-list" id="invoices-list"></div>
+    </section>
+
+    <!-- PRODUCTS TAB -->
+    <section class="admin-panel" id="panel-products" hidden>
+      <div class="admin-panel-header">
+        <div>
+          <div class="admin-eyebrow">Products</div>
+          <h1 class="admin-title">Manage the <span class="italic">catalog.</span></h1>
+        </div>
+        <button class="btn btn-primary" id="open-new-product">+ New product</button>
+      </div>
+
+      <!-- Product edit modal -->
+      <div class="admin-modal-backdrop" id="product-modal" hidden>
+        <div class="admin-modal">
+          <div class="admin-modal-head">
+            <h3 id="product-modal-title">Edit product</h3>
+            <button class="admin-modal-close" id="product-modal-close" aria-label="Close">×</button>
+          </div>
+          <form id="product-form" class="admin-form">
+            <input type="hidden" id="prod-mode" value="edit" />
+            <div class="field-row">
+              <div class="field">
+                <label>ID (slug) *</label>
+                <input type="text" id="prod-id" required placeholder="single-rose" />
+                <small class="admin-help-inline">Lowercase, hyphens. Used in URLs / Stripe metadata.</small>
+              </div>
+              <div class="field">
+                <label>Name *</label>
+                <input type="text" id="prod-name" required placeholder="Single Rose" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Price (USD) *</label>
+                <input type="number" id="prod-price" min="0" step="1" required placeholder="20" />
+              </div>
+              <div class="field">
+                <label>Collection</label>
+                <select id="prod-collection">
+                  <option value="signature">Signature</option>
+                  <option value="mixed-media">Mixed Media</option>
+                  <option value="fluid">Fluid Art</option>
+                  <option value="florals">Florals</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Image path</label>
+              <input type="text" id="prod-image" placeholder="images/12.jpg" />
+              <small class="admin-help-inline">Path to image in the repo. Image upload coming in a future update — for now, drop new images into the <code>images/</code> folder via Git.</small>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Meta label</label>
+                <input type="text" id="prod-meta" placeholder="Florals · 4×4 Tile" />
+              </div>
+              <div class="field">
+                <label>Tag <span class="field-optional">(optional)</span></label>
+                <input type="text" id="prod-tag" placeholder="New, Signature, 1 of 1, etc." />
+              </div>
+            </div>
+            <div class="field">
+              <label>Short detail (one line shown on grid)</label>
+              <input type="text" id="prod-detail" placeholder="Single red rose preserved in resin on a black ceramic tile" />
+            </div>
+            <div class="field">
+              <label>Full description</label>
+              <textarea id="prod-description" rows="4" placeholder="Longer description shown in the product modal."></textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Size</label>
+                <input type="text" id="prod-spec-size" placeholder='4×4" panel' />
+              </div>
+              <div class="field">
+                <label>Medium</label>
+                <input type="text" id="prod-spec-medium" placeholder="Image in resin" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Year</label>
+                <input type="text" id="prod-spec-year" placeholder="2026" />
+              </div>
+              <div class="field">
+                <label>Edition</label>
+                <input type="text" id="prod-spec-edition" placeholder="One of one" />
+              </div>
+            </div>
+            <div class="field-row">
+              <label class="admin-checkbox">
+                <input type="checkbox" id="prod-sold-out" />
+                <span>Mark as sold (hidden from public shop)</span>
+              </label>
+            </div>
+            <div class="admin-form-actions">
+              <button type="button" class="btn btn-ghost" id="product-form-cancel">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="product-form-submit">Save</button>
+            </div>
+            <div class="admin-form-error" id="product-form-error" role="alert"></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="admin-loading" id="products-loading">Loading products…</div>
+      <div class="admin-empty" id="products-empty" hidden>No products yet.</div>
+      <div class="admin-products-grid" id="products-list-admin"></div>
     </section>
 
   </main>

@@ -143,11 +143,26 @@ usually means the access key is missing or wrong.
 
 ---
 
+## 8b. Web3Forms key has moved to a Netlify env var
+
+The contact form now posts to `/.netlify/functions/submit-contact` rather than
+directly to Web3Forms. That function reads the access key from a Netlify env
+var, so update the setup:
+
+1. Netlify → Site configuration → Environment variables
+2. Add: `WEB3FORMS_ACCESS_KEY` = your Web3Forms access key from section 8
+3. (No need to keep any access key in `app.js` anymore — the constant was removed.)
+
+Why the change: submissions now also get archived in the admin "Messages" tab
+(stored in Netlify Blobs), in addition to being emailed.
+
+---
+
 ## 9. Set up the admin dashboard
 
-A private admin page at `/admin` lets Veronica manage orders, customers, and
-invoices without ever opening Stripe directly. (She can still open Stripe for
-the things Stripe does better — refunds, disputes, payouts.)
+A private admin page at `/admin` lets Veronica manage orders, customers,
+contact messages, invoices, and the product catalog without touching Stripe,
+Git, or JSON files directly.
 
 The admin is password-protected with a single shared password. Auth uses a
 custom JWT signed with a secret you'll generate once.

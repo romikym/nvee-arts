@@ -5,7 +5,7 @@ let PRODUCTS = [];
 
 async function loadProducts() {
   try {
-    const res = await fetch('data/products.json', { cache: 'no-cache' });
+    const res = await fetch('/.netlify/functions/get-products', { cache: 'no-cache' });
     if (!res.ok) throw new Error('Failed to load products: ' + res.status);
     PRODUCTS = await res.json();
   } catch (err) {
@@ -486,21 +486,11 @@ async function init() {
   });
 
   // ============ CONTACT FORM ============
-  // Real email delivery via Web3Forms (free, no domain verification required,
-  // no archive — messages go directly to Veronica's inbox).
-  //
-  // SETUP: get a free access key from https://web3forms.com — just enter
-  // desioveronica11@gmail.com on their homepage and they'll email an access
-  // key (no signup required). Paste it below where the placeholder is.
-  const WEB3FORMS_ACCESS_KEY = 'REPLACE_WITH_YOUR_WEB3FORMS_ACCESS_KEY';
-
-  const TOPIC_LABELS = {
-    general: 'General inquiry',
-    commission: 'Custom commission',
-    press: 'Press / interview',
-    wholesale: 'Wholesale / stockist',
-    shipping: 'Order or shipping question',
-  };
+  // Submissions POST to /.netlify/functions/submit-contact which:
+  //   1. Stores the submission in Netlify Blobs (visible in admin Contact tab)
+  //   2. Forwards to Web3Forms so Veronica still gets an email
+  // The Web3Forms access key now lives as a Netlify env var (WEB3FORMS_ACCESS_KEY)
+  // — set it once in Netlify, not in this file.
 
   const contactForm = $('#contact-form');
   if (contactForm) {
@@ -596,38 +586,16 @@ async function init() {
       btn.classList.add('loading');
 
       try {
-        const topicLabel = TOPIC_LABELS[topic] || topic;
-        const payload = {
-          access_key: WEB3FORMS_ACCESS_KEY,
-          subject: `[NVee Arts · ${topicLabel}] ${name}`,
-          from_name: `${name} (via NVee Arts site)`,
-          name,
-          email,
-          topic: topicLabel,
-          phone,
-          budget,
-          size,
-          message,
-          // Web3Forms includes these automatically in the email body
-        };
-
-        if (WEB3FORMS_ACCESS_KEY === 'REPLACE_WITH_YOUR_WEB3FORMS_ACCESS_KEY') {
-          throw new Error('Web3Forms access key not configured. See SETUP.md.');
-        }
-
-        const res = await fetch('https://api.web3forms.com/submit', {
+        // POSTs to our Netlify function, which stores in admin AND emails Veronica.
+        const res = await fetch('/.netlify/functions/submit-contact', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, topic, phone, budget, size, message, botcheck }),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
-          throw new Error(data.message || 'Submission failed');
+          throw new Error(data.error || 'Submission failed');
         }
-
         showSuccessCard();
       } catch (err) {
         console.error('Contact form submit failed:', err);

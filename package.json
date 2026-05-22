@@ -2,8 +2,9 @@
   "name": "nvee-arts",
   "version": "1.0.0",
   "private": true,
-  "description": "NVee Arts storefront — static site + Netlify Function for Stripe Checkout.",
+  "description": "NVee Arts storefront — static site + Netlify Functions for Stripe Checkout, contact form, and admin.",
   "dependencies": {
+    "@netlify/blobs": "^8.1.0",
     "stripe": "^16.12.0"
   }
 }
