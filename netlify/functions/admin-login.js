@@ -25,6 +25,27 @@ exports.handler = async (event) => {
   if (!ok) {
     // small delay to slow down guessing
     await new Promise(r => setTimeout(r, 400));
+    // TEMP DEBUG: when ?debug=1, return non-secret diagnostics so we can
+    // spot trailing-whitespace mismatches without revealing the password.
+    // Remove this block once login is confirmed working.
+    if (event.queryStringParameters && event.queryStringParameters.debug === '1') {
+      const submittedHash = crypto.createHash('sha256').update(submitted).digest('hex').slice(0, 8);
+      const configuredHash = crypto.createHash('sha256').update(adminPw).digest('hex').slice(0, 8);
+      return jsonResponse(401, {
+        error: 'Invalid password',
+        debug: {
+          submittedLength: submitted.length,
+          configuredLength: adminPw.length,
+          lengthsMatch: submitted.length === adminPw.length,
+          submittedSha256Prefix: submittedHash,
+          configuredSha256Prefix: configuredHash,
+          hashesMatch: submittedHash === configuredHash,
+          configuredStartsWithSpace: /^\s/.test(adminPw),
+          configuredEndsWithSpace: /\s$/.test(adminPw),
+          configuredHasNewline: /[\r\n]/.test(adminPw),
+        },
+      });
+    }
     return jsonResponse(401, { error: 'Invalid password' });
   }
 
