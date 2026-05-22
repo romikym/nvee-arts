@@ -230,6 +230,42 @@ dashboard.
 
 ---
 
+## 10. Brand the Stripe invoice PDFs
+
+When Veronica sends an invoice through the admin, Stripe generates the PDF.
+By default it's in Stripe's stock template — clean but generic. A few minutes
+of configuration gives every PDF the NVee logo, brand color, and accent.
+
+1. Open Stripe dashboard → **Settings** (gear icon, top-right) → **Branding**
+2. Upload the **Brand logo** — a square or wide NVee logo on transparent
+   background. PNG works fine. This shows on the invoice PDF header, the
+   hosted invoice page, and Stripe-emitted receipts.
+3. Set **Brand color** to `#00B4FF` (NVee electric blue). This becomes the
+   accent on buttons, links, and headings in the PDF.
+4. Set **Accent color** to `#0077C2` (NVee deep blue) for secondary elements.
+5. Optionally upload an **Icon** — a small square for favicons on hosted pages.
+
+Then for invoice-specific tweaks:
+
+6. **Settings → Billing → Invoice template**
+7. Adjust:
+   - **Memo** — appears at the bottom of every invoice. Add: "Hand-made in
+     North Hollywood. Questions? Reply to this email."
+   - **Footer** — small print at the bottom. Add Veronica's contact info or
+     the website URL.
+   - **Custom fields** — optional, e.g. "Piece ID" if you want internal
+     tracking.
+
+The changes apply immediately to new invoices. To see the result, send a
+test invoice to yourself and download the PDF — it'll have the NVee logo,
+blue accent, and your custom footer.
+
+If you ever want a fully custom PDF design (dark theme, Playfair headers,
+etc.) instead of Stripe's template, that's a separate code-side build that
+generates the PDF ourselves — let me know.
+
+---
+
 ## Day-to-day operations
 
 ### When a piece sells

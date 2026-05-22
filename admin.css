@@ -1289,3 +1289,11 @@ label.prod-dropzone-replace {
   display: inline-block;
   cursor: pointer;
 }
+
+/* Invoice action buttons (Edit / Delete / Void / etc.) */
+.admin-invoice-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}

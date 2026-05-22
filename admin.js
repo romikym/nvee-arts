@@ -353,6 +353,8 @@ function updateContactBadge(count) {
 }
 
 // ============ INVOICES ============
+let allInvoicesCache = [];
+
 async function loadInvoices() {
   $('#invoices-loading').hidden = false;
   $('#invoices-empty').hidden = true;
@@ -361,6 +363,7 @@ async function loadInvoices() {
     const data = await apiFetch('/.netlify/functions/admin-invoices-list?limit=100');
     $('#invoices-loading').hidden = true;
     const invoices = data.invoices || [];
+    allInvoicesCache = invoices;
     if (invoices.length === 0) {
       $('#invoices-empty').hidden = false;
       return;
@@ -371,11 +374,25 @@ async function loadInvoices() {
     showToast('Could not load invoices', err.message);
   }
 }
+
 function renderInvoiceCard(inv) {
   const statusColor = {
     paid: 'paid', open: 'open', draft: 'draft',
     void: 'voided', uncollectible: 'voided',
   }[inv.status] || '';
+
+  // Status-aware action buttons
+  const actions = [];
+  if (inv.status === 'draft') {
+    actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="edit" data-inv-id="${escapeHtml(inv.id)}">Edit</button>`);
+    actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="send" data-inv-id="${escapeHtml(inv.id)}">Finalize + send</button>`);
+    actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="delete" data-inv-id="${escapeHtml(inv.id)}">Delete</button>`);
+  } else if (inv.status === 'open') {
+    actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="void" data-inv-id="${escapeHtml(inv.id)}">Void</button>`);
+  } else if (inv.status === 'paid') {
+    actions.push(`<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com/test/invoices/${escapeHtml(inv.id)}" target="_blank" rel="noopener">Refund in Stripe ↗</a>`);
+  }
+
   return `
     <article class="admin-invoice">
       <div class="admin-invoice-head">
@@ -395,9 +412,11 @@ function renderInvoiceCard(inv) {
       <div class="admin-invoice-footer">
         ${inv.hostedInvoiceUrl ? `<a class="admin-link" href="${escapeHtml(inv.hostedInvoiceUrl)}" target="_blank" rel="noopener">Open hosted page ↗</a>` : ''}
         ${inv.invoicePdf ? `<a class="admin-link" href="${escapeHtml(inv.invoicePdf)}" target="_blank" rel="noopener">Download PDF ↓</a>` : ''}
+        ${actions.length ? `<div class="admin-invoice-actions">${actions.join('')}</div>` : ''}
       </div>
     </article>`;
 }
+
 function toggleNewInvoiceCard(show) {
   const card = $('#new-invoice-card');
   card.hidden = !show;
@@ -407,6 +426,7 @@ function toggleNewInvoiceCard(show) {
     $('#inv-success').hidden = true;
   }
 }
+
 async function handleCreateInvoice(e) {
   e.preventDefault();
   const errEl = $('#inv-error');
@@ -416,7 +436,8 @@ async function handleCreateInvoice(e) {
   successEl.hidden = true;
   btn.disabled = true;
   const originalText = btn.textContent;
-  btn.textContent = 'Sending…';
+  const saveAsDraft = $('#inv-save-draft').checked;
+  btn.textContent = saveAsDraft ? 'Saving draft…' : 'Sending…';
   try {
     const body = {
       email: $('#inv-email').value.trim(),
@@ -424,18 +445,24 @@ async function handleCreateInvoice(e) {
       description: $('#inv-description').value.trim(),
       amountDollars: parseFloat($('#inv-amount').value),
       sendNow: $('#inv-send-now').checked,
+      saveAsDraft,
     };
     const data = await apiFetch('/.netlify/functions/admin-invoices-create', {
       method: 'POST',
       body: JSON.stringify(body),
     });
+    let statusMsg;
+    if (data.draft) statusMsg = `saved as a draft (status: ${data.status})`;
+    else if (data.sent) statusMsg = 'sent to ' + escapeHtml(body.email);
+    else statusMsg = 'finalized (not yet sent)';
     successEl.innerHTML = `
-      ✓ Invoice <strong>${escapeHtml(data.number)}</strong> ${data.sent ? 'sent to ' + escapeHtml(body.email) : 'created (not yet sent)'}.
+      ✓ Invoice <strong>${escapeHtml(data.number)}</strong> ${statusMsg}.
       ${data.hostedInvoiceUrl ? `<br><a href="${escapeHtml(data.hostedInvoiceUrl)}" target="_blank" rel="noopener">Open hosted page ↗</a>` : ''}
     `;
     successEl.hidden = false;
     $('#new-invoice-form').reset();
     $('#inv-send-now').checked = true;
+    $('#inv-save-draft').checked = false;
     loadInvoices();
   } catch (err) {
     errEl.textContent = err.message || 'Failed to create invoice';
@@ -445,6 +472,95 @@ async function handleCreateInvoice(e) {
   }
 }
 
+// ---- Edit + delete (drafts/open) ----
+
+function openInvoiceEditModal(inv) {
+  $('#inv-edit-id').value = inv.id;
+  $('#inv-edit-email').value = inv.customerEmail || '';
+  $('#inv-edit-name').value = inv.customerName || '';
+  $('#inv-edit-description').value = inv.description || '';
+  // amountDue is in cents — convert to dollars for display
+  $('#inv-edit-amount').value = inv.amountDue != null ? (inv.amountDue / 100).toFixed(2) : '';
+  $('#invoice-edit-error').textContent = '';
+  $('#invoice-edit-modal').hidden = false;
+  setTimeout(() => $('#inv-edit-description').focus(), 50);
+}
+
+function closeInvoiceEditModal() {
+  $('#invoice-edit-modal').hidden = true;
+}
+
+async function handleInvoiceEditSubmit(e) {
+  e.preventDefault();
+  const errEl = $('#invoice-edit-error');
+  errEl.textContent = '';
+  const btn = $('#invoice-edit-submit');
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Saving…';
+  try {
+    const body = {
+      id: $('#inv-edit-id').value,
+      description: $('#inv-edit-description').value.trim(),
+      amountDollars: parseFloat($('#inv-edit-amount').value),
+      customerName: $('#inv-edit-name').value.trim(),
+    };
+    await apiFetch('/.netlify/functions/admin-invoices-update', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    showToast('Invoice updated');
+    closeInvoiceEditModal();
+    loadInvoices();
+  } catch (err) {
+    errEl.textContent = err.message || 'Update failed';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+async function handleInvoicesAction(e) {
+  const btn = e.target.closest('[data-inv-action]');
+  if (!btn) return;
+  const action = btn.dataset.invAction;
+  const id = btn.dataset.invId;
+  const inv = allInvoicesCache.find(i => i.id === id);
+  if (!inv) {
+    showToast('Invoice not found', 'Refresh the tab and try again.');
+    return;
+  }
+  try {
+    if (action === 'edit') {
+      openInvoiceEditModal(inv);
+    } else if (action === 'delete') {
+      if (!confirm(`Permanently delete draft invoice ${inv.number}?`)) return;
+      await apiFetch('/.netlify/functions/admin-invoices-delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+      showToast('Draft deleted');
+      loadInvoices();
+    } else if (action === 'void') {
+      if (!confirm(`Void open invoice ${inv.number}? The customer won't be able to pay it.`)) return;
+      await apiFetch('/.netlify/functions/admin-invoices-delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+      showToast('Invoice voided');
+      loadInvoices();
+    } else if (action === 'send') {
+      // Finalize + send a draft. We re-use the create endpoint logic via a quick update:
+      // simplest path is to tell the user to use Stripe dashboard, OR open hosted page link.
+      // For now, alert them to use the Stripe dashboard since we don't have a dedicated finalize endpoint.
+      const url = `https://dashboard.stripe.com/test/invoices/${id}`;
+      window.open(url, '_blank', 'noopener');
+      showToast('Finalize from Stripe', 'Opened the invoice in Stripe — click "Finalize" then "Send".');
+    }
+  } catch (err) {
+    showToast('Action failed', err.message);
+  }
+}
 // ============ PRODUCTS ============
 let allProductsCache = [];
 const productFilters = { status: 'all', collection: 'all', search: '', sort: 'default' };
@@ -954,6 +1070,13 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#open-new-invoice').addEventListener('click', () => toggleNewInvoiceCard(true));
   $('#cancel-new-invoice').addEventListener('click', () => toggleNewInvoiceCard(false));
   $('#new-invoice-form').addEventListener('submit', handleCreateInvoice);
+  $('#invoices-list').addEventListener('click', handleInvoicesAction);
+  $('#invoice-edit-close').addEventListener('click', closeInvoiceEditModal);
+  $('#invoice-edit-cancel').addEventListener('click', closeInvoiceEditModal);
+  $('#invoice-edit-form').addEventListener('submit', handleInvoiceEditSubmit);
+  $('#invoice-edit-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'invoice-edit-modal') closeInvoiceEditModal();
+  });
 
   // Contact
   $('#contact-list').addEventListener('click', handleContactAction);

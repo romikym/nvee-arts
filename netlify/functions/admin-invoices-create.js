@@ -1,8 +1,9 @@
 // POST /.netlify/functions/admin-invoices-create
 // Auth: Authorization: Bearer <JWT>
-// Body: { email, name?, description, amountDollars, sendNow? (boolean) }
-// Creates a customer (or finds existing), an invoice item, finalizes the invoice,
-// and optionally sends it to the customer via Stripe.
+// Body: { email, name?, description, amountDollars, sendNow?, saveAsDraft? }
+// Creates a customer (or finds existing), an invoice item, and either:
+//   - saveAsDraft: returns the draft (no finalize) so it can be edited later
+//   - otherwise finalizes and (if sendNow !== false) sends via Stripe.
 
 const Stripe = require('stripe');
 const { requireAuth, corsHeaders, jsonResponse } = require('./_lib/auth');
@@ -19,13 +20,15 @@ exports.handler = async (event) => {
   const stripe = new Stripe(secret, { apiVersion: '2024-06-20' });
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); } catch { return jsonResponse(400, { error: 'Invalid JSON' }); }
+  try { body = JSON.parse(event.body || '{}'); }
+  catch { return jsonResponse(400, { error: 'Invalid JSON' }); }
 
   const email = (body.email || '').trim();
   const name = (body.name || '').trim();
   const description = (body.description || '').trim();
   const amountDollars = parseFloat(body.amountDollars);
   const sendNow = body.sendNow !== false; // default true
+  const saveAsDraft = !!body.saveAsDraft;  // default false
 
   if (!email) return jsonResponse(400, { error: 'Email is required' });
   if (!description) return jsonResponse(400, { error: 'Description is required' });
@@ -34,7 +37,6 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Look for an existing customer with that email; create if none.
     const existing = await stripe.customers.list({ email, limit: 1 });
     let customer = existing.data[0];
     if (!customer) {
@@ -43,8 +45,6 @@ exports.handler = async (event) => {
       customer = await stripe.customers.update(customer.id, { name });
     }
 
-    // Create a draft invoice first, then add the item to it (more reliable than
-    // creating a standalone invoice item without an invoice).
     const invoice = await stripe.invoices.create({
       customer: customer.id,
       collection_method: 'send_invoice',
@@ -61,8 +61,21 @@ exports.handler = async (event) => {
       description,
     });
 
-    const finalized = await stripe.invoices.finalizeInvoice(invoice.id);
+    if (saveAsDraft) {
+      const draft = await stripe.invoices.retrieve(invoice.id);
+      return jsonResponse(200, {
+        id: draft.id,
+        number: draft.number || draft.id,
+        status: draft.status,
+        hostedInvoiceUrl: draft.hosted_invoice_url,
+        invoicePdf: draft.invoice_pdf,
+        amount: draft.amount_due,
+        sent: false,
+        draft: true,
+      });
+    }
 
+    const finalized = await stripe.invoices.finalizeInvoice(invoice.id);
     let result = finalized;
     if (sendNow) {
       result = await stripe.invoices.sendInvoice(finalized.id);
@@ -76,6 +89,7 @@ exports.handler = async (event) => {
       invoicePdf: result.invoice_pdf,
       amount: result.amount_due,
       sent: sendNow,
+      draft: false,
     });
   } catch (err) {
     console.error('admin-invoices-create error:', err);
