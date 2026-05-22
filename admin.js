@@ -74,7 +74,7 @@ async function handleLogin(e) {
   const pw = $('#admin-pw').value;
   const errEl = $('#admin-login-error');
   const btn = $('#admin-login-btn');
-  errEl.textContent = '';
+  errEl.innerHTML = '';
   btn.disabled = true;
   btn.classList.add('loading');
   try {
@@ -83,12 +83,34 @@ async function handleLogin(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    let data = {};
+    try { data = await res.json(); } catch { /* non-JSON */ }
+    if (!res.ok) {
+      const baseMsg = data.error || `Login failed (HTTP ${res.status})`;
+      if (data.debug) {
+        const d = data.debug;
+        errEl.innerHTML = `
+          <strong>${baseMsg}</strong>
+          <div style="margin-top:8px; padding:10px 12px; background:rgba(255,77,94,0.08); border-radius:8px; font-family:ui-monospace,monospace; font-size:11px; line-height:1.6; color:#fff; text-align:left;">
+            submitted length: <strong>${d.submittedLength}</strong><br>
+            configured length: <strong>${d.configuredLength}</strong><br>
+            lengths match: <strong>${d.lengthsMatch}</strong><br>
+            submitted hash prefix: ${d.submittedSha256Prefix}<br>
+            configured hash prefix: ${d.configuredSha256Prefix}<br>
+            hashes match: <strong>${d.hashesMatch}</strong><br>
+            configured starts with whitespace: <strong>${d.configuredStartsWithSpace}</strong><br>
+            configured ends with whitespace: <strong>${d.configuredEndsWithSpace}</strong><br>
+            configured has newline: <strong>${d.configuredHasNewline}</strong>
+          </div>`;
+      } else {
+        errEl.textContent = baseMsg;
+      }
+      throw new Error(baseMsg);
+    }
     setToken(data.token);
     showAdminShell();
   } catch (err) {
-    errEl.textContent = err.message || 'Login failed';
+    if (!errEl.innerHTML) errEl.textContent = err.message || 'Login failed';
     btn.disabled = false;
     btn.classList.remove('loading');
     $('#admin-pw').focus();

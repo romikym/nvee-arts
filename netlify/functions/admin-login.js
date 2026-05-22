@@ -1,6 +1,10 @@
 // POST /.netlify/functions/admin-login
 // Body: { password: "..." }
 // Returns: { token: "<JWT>" } on success, 401 on bad password.
+//
+// TEMP: while we debug the login mismatch, 401 responses always include
+// a `debug` object with non-secret length/hash-prefix info so we can spot
+// trailing-whitespace mismatches. Remove the debug block once login works.
 
 const crypto = require('crypto');
 const { signToken, corsHeaders, jsonResponse } = require('./_lib/auth');
@@ -18,42 +22,34 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch { return jsonResponse(400, { error: 'Invalid JSON' }); }
 
   const submitted = (body.password || '').toString();
-  // constant-time comparison
   const a = Buffer.from(submitted);
   const b = Buffer.from(adminPw);
   const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
   if (!ok) {
-    // small delay to slow down guessing
     await new Promise(r => setTimeout(r, 400));
-    // TEMP DEBUG: when ?debug=1, return non-secret diagnostics so we can
-    // spot trailing-whitespace mismatches without revealing the password.
-    // Remove this block once login is confirmed working.
-    if (event.queryStringParameters && event.queryStringParameters.debug === '1') {
-      const submittedHash = crypto.createHash('sha256').update(submitted).digest('hex').slice(0, 8);
-      const configuredHash = crypto.createHash('sha256').update(adminPw).digest('hex').slice(0, 8);
-      return jsonResponse(401, {
-        error: 'Invalid password',
-        debug: {
-          submittedLength: submitted.length,
-          configuredLength: adminPw.length,
-          lengthsMatch: submitted.length === adminPw.length,
-          submittedSha256Prefix: submittedHash,
-          configuredSha256Prefix: configuredHash,
-          hashesMatch: submittedHash === configuredHash,
-          configuredStartsWithSpace: /^\s/.test(adminPw),
-          configuredEndsWithSpace: /\s$/.test(adminPw),
-          configuredHasNewline: /[\r\n]/.test(adminPw),
-        },
-      });
-    }
-    return jsonResponse(401, { error: 'Invalid password' });
+    const submittedHash = crypto.createHash('sha256').update(submitted).digest('hex').slice(0, 8);
+    const configuredHash = crypto.createHash('sha256').update(adminPw).digest('hex').slice(0, 8);
+    return jsonResponse(401, {
+      error: 'Invalid password',
+      debug: {
+        submittedLength: submitted.length,
+        configuredLength: adminPw.length,
+        lengthsMatch: submitted.length === adminPw.length,
+        submittedSha256Prefix: submittedHash,
+        configuredSha256Prefix: configuredHash,
+        hashesMatch: submittedHash === configuredHash,
+        configuredStartsWithSpace: /^\s/.test(adminPw),
+        configuredEndsWithSpace: /\s$/.test(adminPw),
+        configuredHasNewline: /[\r\n]/.test(adminPw),
+      },
+    });
   }
 
   const now = Math.floor(Date.now() / 1000);
   const token = signToken({
     role: 'admin',
     iat: now,
-    exp: now + (60 * 60 * 12), // 12-hour session
+    exp: now + (60 * 60 * 12),
   }, secret);
   return jsonResponse(200, { token, expiresInSec: 60 * 60 * 12 });
 };
