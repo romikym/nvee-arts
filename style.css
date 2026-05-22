@@ -960,7 +960,6 @@ footer { background: var(--nvee-black); padding: 80px 32px 40px;
   .brand-logo { width: 120px !important; height: 48px !important; }
   .mobile-menu-links a { font-size: 24px !important; padding: 16px 4px !important; }
 }
-ng-top: 24px; }
 .mobile-menu-links a { padding: 18px 4px; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; color: var(--nvee-text); border-bottom: 1px solid var(--nvee-line); transition: color 0.2s ease, padding-left 0.25s ease; display: flex; align-items: center; justify-content: space-between; }
 .mobile-menu-links a::after { content: "→"; opacity: 0; transform: translateX(-8px); transition: all 0.25s ease; color: var(--nvee-blue-electric); }
 .mobile-menu-links a:hover, .mobile-menu-links a:active { color: var(--nvee-blue-electric); padding-left: 12px; }

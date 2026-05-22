@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "description": "NVee Arts storefront — static site + Netlify Functions for Stripe Checkout, contact form, and admin.",
+  "scripts": {
+    "test": "node scripts/verify.js",
+    "verify": "node scripts/verify.js"
+  },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
     "stripe": "^16.12.0"
