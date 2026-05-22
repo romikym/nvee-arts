@@ -178,6 +178,35 @@
         <button class="btn btn-primary" id="open-new-product">+ New product</button>
       </div>
 
+      <!-- Filter / sort / search toolbar -->
+      <div class="admin-toolbar">
+        <div class="admin-filter-row">
+          <span class="admin-filter-label">Status</span>
+          <button class="admin-pill active" data-pfilter-status="all">All <span class="admin-pill-count" data-status-count="all">0</span></button>
+          <button class="admin-pill" data-pfilter-status="available">Available <span class="admin-pill-count" data-status-count="available">0</span></button>
+          <button class="admin-pill" data-pfilter-status="sold">Sold <span class="admin-pill-count" data-status-count="sold">0</span></button>
+        </div>
+        <div class="admin-filter-row">
+          <span class="admin-filter-label">Collection</span>
+          <button class="admin-pill active" data-pfilter-collection="all">All</button>
+          <button class="admin-pill" data-pfilter-collection="signature">Signature</button>
+          <button class="admin-pill" data-pfilter-collection="mixed-media">Mixed Media</button>
+          <button class="admin-pill" data-pfilter-collection="fluid">Fluid Art</button>
+          <button class="admin-pill" data-pfilter-collection="florals">Florals</button>
+        </div>
+        <div class="admin-toolbar-search">
+          <input type="search" id="products-search" placeholder="Search by name or ID…" />
+          <select id="products-sort" aria-label="Sort">
+            <option value="default">Default order</option>
+            <option value="price-desc">Price: high → low</option>
+            <option value="price-asc">Price: low → high</option>
+            <option value="name-asc">Name: A → Z</option>
+            <option value="name-desc">Name: Z → A</option>
+          </select>
+        </div>
+        <div class="admin-toolbar-count" id="products-showing">Showing 0 of 0</div>
+      </div>
+
       <!-- Product edit modal -->
       <div class="admin-modal-backdrop" id="product-modal" hidden>
         <div class="admin-modal">
@@ -273,7 +302,7 @@
 
       <div class="admin-loading" id="products-loading">Loading products…</div>
       <div class="admin-empty" id="products-empty" hidden>No products yet.</div>
-      <div class="admin-products-grid" id="products-list-admin"></div>
+      <div class="admin-products-list" id="products-list-admin"></div>
     </section>
 
   </main>

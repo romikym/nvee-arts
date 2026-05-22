@@ -446,6 +446,9 @@ async function handleCreateInvoice(e) {
 }
 
 // ============ PRODUCTS ============
+let allProductsCache = [];
+const productFilters = { status: 'all', collection: 'all', search: '', sort: 'default' };
+
 async function loadProductsAdmin() {
   $('#products-loading').hidden = false;
   $('#products-empty').hidden = true;
@@ -453,48 +456,119 @@ async function loadProductsAdmin() {
   try {
     const data = await apiFetch('/.netlify/functions/admin-products-list');
     $('#products-loading').hidden = true;
-    const products = data.products || [];
-    if (products.length === 0) {
-      $('#products-empty').hidden = false;
-      return;
-    }
-    $('#products-list-admin').innerHTML = products.map(renderProductCard).join('');
+    allProductsCache = data.products || [];
+    updateProductCounts();
+    applyProductFilters();
   } catch (err) {
     $('#products-loading').hidden = true;
     showToast('Could not load products', err.message);
   }
 }
+
+function updateProductCounts() {
+  const total = allProductsCache.length;
+  const sold = allProductsCache.filter(p => p.soldOut).length;
+  const avail = total - sold;
+  const setCount = (key, value) => {
+    const el = document.querySelector(`[data-status-count="${key}"]`);
+    if (el) el.textContent = value;
+  };
+  setCount('all', total);
+  setCount('available', avail);
+  setCount('sold', sold);
+}
+
+function applyProductFilters() {
+  let list = allProductsCache.slice();
+
+  // Status filter
+  if (productFilters.status === 'available') list = list.filter(p => !p.soldOut);
+  else if (productFilters.status === 'sold') list = list.filter(p => p.soldOut);
+
+  // Collection filter
+  if (productFilters.collection !== 'all') {
+    list = list.filter(p => p.collection === productFilters.collection);
+  }
+
+  // Search
+  const q = productFilters.search.trim().toLowerCase();
+  if (q) {
+    list = list.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.id || '').toLowerCase().includes(q) ||
+      (p.detail || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  if (productFilters.sort === 'price-desc') list.sort((a,b) => Number(b.price) - Number(a.price));
+  else if (productFilters.sort === 'price-asc') list.sort((a,b) => Number(a.price) - Number(b.price));
+  else if (productFilters.sort === 'name-asc') list.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  else if (productFilters.sort === 'name-desc') list.sort((a,b) => (b.name||'').localeCompare(a.name||''));
+  // 'default' keeps catalog order from server
+
+  // Showing count + empty state
+  document.getElementById('products-showing').textContent =
+    `Showing ${list.length} of ${allProductsCache.length}`;
+  if (allProductsCache.length === 0) {
+    $('#products-empty').hidden = false;
+    $('#products-empty').textContent = 'No products yet. Click "+ New product" to add one.';
+    $('#products-list-admin').innerHTML = '';
+    return;
+  } else if (list.length === 0) {
+    $('#products-empty').hidden = false;
+    $('#products-empty').textContent = 'No products match the current filters.';
+    $('#products-list-admin').innerHTML = '';
+    return;
+  } else {
+    $('#products-empty').hidden = true;
+  }
+
+  $('#products-list-admin').innerHTML = list.map(renderProductCard).join('');
+}
+
 function renderProductCard(p) {
-  const soldBadge = p.soldOut ? '<span class="admin-badge voided">Sold</span>' : '';
   const tagBadge = p.tag ? `<span class="admin-badge open">${escapeHtml(p.tag)}</span>` : '';
+  const soldBadge = p.soldOut ? '<span class="admin-badge voided">Sold</span>' : '<span class="admin-badge paid">Available</span>';
+  const collectionLabel = ({
+    signature: 'Signature',
+    'mixed-media': 'Mixed Media',
+    fluid: 'Fluid Art',
+    florals: 'Florals',
+  })[p.collection] || p.collection || '';
   return `
-    <article class="admin-product-card ${p.soldOut ? 'sold' : ''}" data-id="${escapeHtml(p.id)}">
-      <div class="admin-product-img">
-        <img src="${escapeHtml(p.image || '')}" alt="${escapeHtml(p.name)}" onerror="this.style.opacity=0.3" />
+    <article class="admin-product-row ${p.soldOut ? 'sold' : ''}" data-id="${escapeHtml(p.id)}">
+      <div class="admin-product-thumb">
+        <img src="${escapeHtml(p.image || '')}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.style.opacity=0.3" />
       </div>
-      <div class="admin-product-body">
-        <div class="admin-product-row">
-          <strong>${escapeHtml(p.name)}</strong>
+      <div class="admin-product-info">
+        <div class="admin-product-line1">
+          <strong class="admin-product-name">${escapeHtml(p.name)}</strong>
           <span class="admin-product-price">${fmtUSDPlain(p.price)}</span>
         </div>
-        <div class="admin-product-meta">${escapeHtml(p.meta || '')} · <code>${escapeHtml(p.id)}</code></div>
-        <div class="admin-product-badges">${soldBadge}${tagBadge}</div>
+        <div class="admin-product-line2">
+          <span class="admin-product-collection">${escapeHtml(collectionLabel)}</span>
+          <span class="admin-product-id">${escapeHtml(p.id)}</span>
+          ${tagBadge}${soldBadge}
+        </div>
+        ${p.detail ? `<div class="admin-product-detail">${escapeHtml(p.detail)}</div>` : ''}
       </div>
-      <div class="admin-product-actions">
+      <div class="admin-product-actions-row">
         <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${escapeHtml(p.id)}">Edit</button>
         <button class="btn btn-ghost btn-sm" data-action="toggle-sold" data-id="${escapeHtml(p.id)}">${p.soldOut ? 'Mark available' : 'Mark sold'}</button>
         <button class="btn btn-ghost btn-sm admin-danger" data-action="delete" data-id="${escapeHtml(p.id)}">Delete</button>
       </div>
     </article>`;
 }
-let allProductsCache = [];
+
 async function fetchAllProducts() {
   const data = await apiFetch('/.netlify/functions/admin-products-list');
   allProductsCache = data.products || [];
   return allProductsCache;
 }
+
 function openProductModal(mode, product) {
-  $('#product-mode').value = mode;
+  $('#prod-mode').value = mode;
   $('#product-modal-title').textContent = mode === 'new' ? 'New product' : 'Edit product';
   $('#product-form-error').textContent = '';
   const p = product || {};
@@ -519,6 +593,7 @@ function openProductModal(mode, product) {
 function closeProductModal() {
   $('#product-modal').hidden = true;
 }
+
 async function handleProductsAction(e) {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
@@ -526,21 +601,19 @@ async function handleProductsAction(e) {
   const id = btn.dataset.id;
   try {
     if (action === 'edit') {
-      if (!allProductsCache.length) await fetchAllProducts();
       const product = allProductsCache.find(p => p.id === id);
+      if (!product) throw new Error('Product not found in cache — refresh the tab');
       openProductModal('edit', product);
     } else if (action === 'toggle-sold') {
-      if (!allProductsCache.length) await fetchAllProducts();
       const product = allProductsCache.find(p => p.id === id);
-      if (!product) throw new Error('Product not found in cache');
-      product.soldOut = !product.soldOut;
+      if (!product) throw new Error('Product not found in cache — refresh the tab');
+      const updated = { ...product, soldOut: !product.soldOut };
       await apiFetch('/.netlify/functions/admin-products-save', {
         method: 'POST',
-        body: JSON.stringify(product),
+        body: JSON.stringify(updated),
       });
-      showToast(product.soldOut ? 'Marked sold' : 'Marked available');
-      await fetchAllProducts();
-      loadProductsAdmin();
+      showToast(updated.soldOut ? 'Marked sold' : 'Marked available', product.name);
+      await loadProductsAdmin();
     } else if (action === 'delete') {
       if (!confirm('Permanently delete this product? This cannot be undone.')) return;
       await apiFetch('/.netlify/functions/admin-products-delete', {
@@ -548,13 +621,13 @@ async function handleProductsAction(e) {
         body: JSON.stringify({ id }),
       });
       showToast('Product deleted');
-      await fetchAllProducts();
-      loadProductsAdmin();
+      await loadProductsAdmin();
     }
   } catch (err) {
     showToast('Action failed', err.message);
   }
 }
+
 async function handleProductFormSubmit(e) {
   e.preventDefault();
   const errEl = $('#product-form-error');
@@ -567,7 +640,7 @@ async function handleProductFormSubmit(e) {
     image: $('#prod-image').value.trim(),
     meta: $('#prod-meta').value.trim(),
     tag: $('#prod-tag').value.trim(),
-    tagClass: '', // back-compat with existing renderer
+    tagClass: '',
     detail: $('#prod-detail').value.trim(),
     description: $('#prod-description').value.trim(),
     specs: {
@@ -589,13 +662,47 @@ async function handleProductFormSubmit(e) {
     });
     showToast('Saved', product.name);
     closeProductModal();
-    await fetchAllProducts();
-    loadProductsAdmin();
+    await loadProductsAdmin();
   } catch (err) {
     errEl.textContent = err.message || 'Save failed';
   }
 }
 
+// Filter / sort / search toolbar event handlers
+function wireProductToolbar() {
+  // Status pills
+  document.querySelectorAll('[data-pfilter-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      productFilters.status = btn.dataset.pfilterStatus;
+      document.querySelectorAll('[data-pfilter-status]').forEach(b => b.classList.toggle('active', b === btn));
+      applyProductFilters();
+    });
+  });
+  // Collection pills
+  document.querySelectorAll('[data-pfilter-collection]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      productFilters.collection = btn.dataset.pfilterCollection;
+      document.querySelectorAll('[data-pfilter-collection]').forEach(b => b.classList.toggle('active', b === btn));
+      applyProductFilters();
+    });
+  });
+  // Search
+  const search = document.getElementById('products-search');
+  if (search) {
+    search.addEventListener('input', () => {
+      productFilters.search = search.value;
+      applyProductFilters();
+    });
+  }
+  // Sort
+  const sort = document.getElementById('products-sort');
+  if (sort) {
+    sort.addEventListener('change', () => {
+      productFilters.sort = sort.value;
+      applyProductFilters();
+    });
+  }
+}
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', () => {
   $('#admin-login-form').addEventListener('submit', handleLogin);
@@ -619,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#product-modal').addEventListener('click', (e) => {
     if (e.target.id === 'product-modal') closeProductModal();
   });
+  wireProductToolbar();
 
   if (getToken()) {
     showAdminShell();
