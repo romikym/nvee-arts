@@ -651,13 +651,20 @@ function readFileAsBase64(file) {
 }
 
 async function uploadSelectedFile(file) {
-  if (!file) return;
+  console.log('[upload] start', { name: file && file.name, size: file && file.size, type: file && file.type });
+  const errEl = $('#product-form-error');
+  if (errEl) errEl.textContent = '';
+
+  if (!file) {
+    console.warn('[upload] no file passed');
+    return;
+  }
   if (!file.type || !file.type.startsWith('image/')) {
-    showToast('That file isn\'t a photo', 'Try a JPEG, PNG, or WebP image.');
+    showFormError(`That file isn't a photo (type: ${file.type || 'unknown'}). Try a JPEG, PNG, or WebP image.`);
     return;
   }
   if (file.size > 8 * 1024 * 1024) {
-    showToast('Photo is too large', 'Max 8 MB — try resizing or recompressing.');
+    showFormError(`Photo is too large (${(file.size/1024/1024).toFixed(1)} MB). Max is 8 MB — try resizing.`);
     return;
   }
 
@@ -666,7 +673,10 @@ async function uploadSelectedFile(file) {
   $('#prod-dropzone-uploading').hidden = false;
 
   try {
+    console.log('[upload] reading file as base64…');
     const base64 = await readFileAsBase64(file);
+    console.log('[upload] base64 length:', base64.length);
+    console.log('[upload] POSTing to /.netlify/functions/admin-image-upload …');
     const data = await apiFetch('/.netlify/functions/admin-image-upload', {
       method: 'POST',
       body: JSON.stringify({
@@ -675,13 +685,27 @@ async function uploadSelectedFile(file) {
         base64,
       }),
     });
+    console.log('[upload] success:', data);
     $('#prod-image').value = data.url;
     showImagePreview(data.url);
     showToast('Photo uploaded', file.name);
   } catch (err) {
-    showToast('Upload failed', err.message || 'Please try again.');
+    console.error('[upload] FAILED:', err);
+    showFormError(`Upload failed: ${err.message || 'unknown error'}. Check the browser console + Netlify function logs.`);
     showImagePreview($('#prod-image').value); // restore prior preview
   }
+}
+
+function showFormError(message) {
+  const errEl = $('#product-form-error');
+  if (!errEl) return;
+  errEl.textContent = message;
+  errEl.style.padding = '12px 14px';
+  errEl.style.background = 'rgba(255, 77, 94, 0.1)';
+  errEl.style.border = '1px solid rgba(255, 77, 94, 0.35)';
+  errEl.style.borderRadius = '10px';
+  errEl.style.marginTop = '12px';
+  errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function handleProductsAction(e) {
@@ -720,21 +744,40 @@ async function handleProductsAction(e) {
 
 async function handleProductFormSubmit(e) {
   e.preventDefault();
+  console.log('[save] handleProductFormSubmit fired');
   const errEl = $('#product-form-error');
-  errEl.textContent = '';
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.removeAttribute('style');
+  }
 
   const name = $('#prod-name').value.trim();
   const id = ($('#prod-id').value.trim()) || slugify(name);
-  const price = parseFloat($('#prod-price').value);
+  const priceRaw = $('#prod-price').value;
+  const price = parseFloat(priceRaw);
   const image = $('#prod-image').value.trim();
 
-  if (!name || !id || isNaN(price)) {
-    errEl.textContent = 'Name and price are required.';
+  console.log('[save] collected fields:', { name, id, priceRaw, price, hasImage: !!image });
+
+  if (!name) {
+    showFormError('Please give the piece a name.');
+    $('#prod-name').focus();
     return;
   }
-  if (!image) {
-    errEl.textContent = 'Please add a photo before saving.';
+  if (!id) {
+    showFormError('Could not generate a web ID from that name — try adding more characters.');
+    $('#prod-name').focus();
     return;
+  }
+  if (isNaN(price) || price < 0) {
+    showFormError('Please enter a valid price (a positive number).');
+    $('#prod-price').focus();
+    return;
+  }
+  // Image is recommended but no longer blocks save — you can save and add a photo later.
+  if (!image) {
+    const confirmed = confirm('No photo attached. The piece will show without an image on the shop. Save anyway?');
+    if (!confirmed) return;
   }
 
   const product = {
@@ -757,16 +800,29 @@ async function handleProductFormSubmit(e) {
     soldOut: $('#prod-sold-out').checked,
   };
 
+  const submitBtn = $('#product-form-submit');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+  }
   try {
-    await apiFetch('/.netlify/functions/admin-products-save', {
+    console.log('[save] POSTing to /.netlify/functions/admin-products-save …');
+    const result = await apiFetch('/.netlify/functions/admin-products-save', {
       method: 'POST',
       body: JSON.stringify(product),
     });
+    console.log('[save] success:', result);
     showToast('Saved', product.name);
     closeProductModal();
     await loadProductsAdmin();
   } catch (err) {
-    errEl.textContent = err.message || 'Save failed';
+    console.error('[save] FAILED:', err);
+    showFormError(`Save failed: ${err.message || 'unknown error'}. Check the browser console + Netlify function logs.`);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save piece';
+    }
   }
 }
 
@@ -876,6 +932,7 @@ function wireProductModal() {
     });
   }
 }
+
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', () => {
   $('#admin-login-form').addEventListener('submit', handleLogin);
@@ -900,6 +957,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.id === 'product-modal') closeProductModal();
   });
   wireProductToolbar();
+  wireProductModal();
 
   if (getToken()) {
     showAdminShell();
