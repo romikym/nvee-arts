@@ -841,25 +841,14 @@ function wireProductModal() {
     });
   }
 
-  // File input
+  // File input — the empty state and "Replace photo" element are <label for="prod-file">
+  // elements, so clicking them natively opens the file picker. We only need to
+  // listen for the change event to handle the selected file.
   const fileInput = $('#prod-file');
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (file) uploadSelectedFile(file);
-    });
-  }
-  // Click anywhere on the dropzone empty state to choose file
-  const empty = $('#prod-dropzone-empty');
-  if (empty) {
-    empty.addEventListener('click', () => fileInput && fileInput.click());
-  }
-  // Replace photo button
-  const replaceBtn = $('#prod-image-replace');
-  if (replaceBtn) {
-    replaceBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      fileInput && fileInput.click();
     });
   }
 

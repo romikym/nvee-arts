@@ -222,8 +222,8 @@
             <div class="field">
               <label class="prod-field-label">Photo</label>
               <div class="prod-dropzone" id="prod-dropzone">
-                <input type="file" id="prod-file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
-                <div class="prod-dropzone-empty" id="prod-dropzone-empty">
+                <input type="file" id="prod-file" class="prod-file-input" accept="image/jpeg,image/png,image/webp,image/gif" />
+                <label for="prod-file" class="prod-dropzone-empty" id="prod-dropzone-empty">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="3" y="3" width="18" height="18" rx="2"/>
                     <circle cx="9" cy="9" r="2"/>
@@ -231,10 +231,10 @@
                   </svg>
                   <div class="prod-dropzone-title">Drop a photo here or <span class="prod-dropzone-link">click to choose</span></div>
                   <div class="prod-dropzone-sub">JPEG, PNG, WebP up to 8 MB. Square crops look best.</div>
-                </div>
+                </label>
                 <div class="prod-dropzone-preview" id="prod-dropzone-preview" hidden>
                   <img id="prod-image-preview" alt="Preview" />
-                  <button type="button" class="prod-dropzone-replace" id="prod-image-replace">Replace photo</button>
+                  <label for="prod-file" class="prod-dropzone-replace" id="prod-image-replace">Replace photo</label>
                 </div>
                 <div class="prod-dropzone-uploading" id="prod-dropzone-uploading" hidden>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: nv-spin 0.8s linear infinite;">

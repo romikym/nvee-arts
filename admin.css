@@ -1220,3 +1220,72 @@
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ============================================================
+   Dropzone — visually-hidden file input + elevated polish
+   ============================================================ */
+
+/* The file input is positioned absolutely with zero size and opacity. Cannot use
+   display:none because some browsers won't trigger the native file picker on
+   programmatic .click() when the input is fully removed from the layout. */
+.prod-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+}
+
+/* Elevation upgrade: subtle inset glow, soft drop shadow, a gradient ring */
+.prod-dropzone {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 180, 255, 0.10), transparent 70%),
+    linear-gradient(180deg, rgba(0, 180, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 2px dashed rgba(0, 180, 255, 0.30);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 12px 30px -10px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(0, 180, 255, 0.05);
+  position: relative;
+}
+.prod-dropzone:hover {
+  border-color: var(--nvee-blue);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 180, 255, 0.15), transparent 70%),
+    linear-gradient(180deg, rgba(0, 180, 255, 0.07), rgba(255, 255, 255, 0.02));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 16px 40px -10px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--nvee-blue);
+}
+.prod-dropzone.dragging {
+  border-color: var(--nvee-blue-electric);
+  border-style: solid;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0, 180, 255, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(0, 180, 255, 0.12), rgba(0, 119, 194, 0.04));
+  box-shadow:
+    0 0 0 3px rgba(0, 180, 255, 0.25),
+    0 24px 50px -10px rgba(0, 180, 255, 0.4);
+  transform: scale(1.01);
+}
+
+/* The empty-state label needs to behave like a button */
+.prod-dropzone-empty {
+  display: block;
+  cursor: pointer;
+}
+.prod-dropzone-empty:hover .prod-dropzone-link {
+  color: var(--nvee-text);
+}
+
+/* The Replace button (now a label) needs to look like a button */
+label.prod-dropzone-replace {
+  display: inline-block;
+  cursor: pointer;
+}
