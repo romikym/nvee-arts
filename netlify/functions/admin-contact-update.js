@@ -2,7 +2,7 @@
 // Auth: Authorization: Bearer <JWT>
 // Body: { id, read?, replied?, delete? }
 
-const { getStore } = require('@netlify/blobs');
+const { makeStore } = require('./_lib/blobs');
 const { requireAuth, corsHeaders, jsonResponse } = require('./_lib/auth');
 
 exports.handler = async (event) => {
@@ -17,7 +17,7 @@ exports.handler = async (event) => {
   if (!body.id) return jsonResponse(400, { error: 'id is required' });
 
   try {
-    const store = getStore('contact-submissions');
+    const store = makeStore('contact-submissions');
     if (body.delete) {
       await store.delete(body.id);
       return jsonResponse(200, { success: true, deleted: true });

@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getStore } = require('@netlify/blobs');
+const { makeStore } = require('./_lib/blobs');
 const { requireAuth, corsHeaders, jsonResponse } = require('./_lib/auth');
 
 const SEED_KEY = '_catalog';
@@ -28,7 +28,7 @@ exports.handler = async (event) => {
   if (!auth.ok) return auth.response;
 
   try {
-    const store = getStore('products');
+    const store = makeStore('products');
     let catalog = await store.get(SEED_KEY, { type: 'json' });
     if (!catalog || !Array.isArray(catalog) || catalog.length === 0) {
       catalog = loadSeed();

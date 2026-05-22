@@ -2,7 +2,7 @@
 // Auth: Authorization: Bearer <JWT>
 // Returns all stored contact submissions, sorted newest first.
 
-const { getStore } = require('@netlify/blobs');
+const { makeStore } = require('./_lib/blobs');
 const { requireAuth, corsHeaders, jsonResponse } = require('./_lib/auth');
 
 exports.handler = async (event) => {
@@ -13,7 +13,7 @@ exports.handler = async (event) => {
   if (!auth.ok) return auth.response;
 
   try {
-    const store = getStore('contact-submissions');
+    const store = makeStore('contact-submissions');
     const { blobs } = await store.list();
     const submissions = [];
     for (const blob of blobs) {

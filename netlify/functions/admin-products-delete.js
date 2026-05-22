@@ -2,7 +2,7 @@
 // Auth: Authorization: Bearer <JWT>
 // Body: { id }
 
-const { getStore } = require('@netlify/blobs');
+const { makeStore } = require('./_lib/blobs');
 const { requireAuth, corsHeaders, jsonResponse } = require('./_lib/auth');
 
 const SEED_KEY = '_catalog';
@@ -19,7 +19,7 @@ exports.handler = async (event) => {
   if (!body.id) return jsonResponse(400, { error: 'id is required' });
 
   try {
-    const store = getStore('products');
+    const store = makeStore('products');
     const catalog = (await store.get(SEED_KEY, { type: 'json' })) || [];
     const before = catalog.length;
     const next = catalog.filter((p) => p.id !== body.id);

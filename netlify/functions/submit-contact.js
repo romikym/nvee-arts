@@ -68,10 +68,10 @@ exports.handler = async (event) => {
   let storedError = null;
   let blobsModuleLoaded = false;
   try {
-    // Lazy-require so a missing module doesn't crash the whole function.
-    const blobs = require('@netlify/blobs');
+    // Lazy-require so a missing helper doesn't crash the whole function.
+    const { makeStore } = require('./_lib/blobs');
     blobsModuleLoaded = true;
-    const store = blobs.getStore('contact-submissions');
+    const store = makeStore('contact-submissions');
     await store.setJSON(id, submission);
     storedOk = true;
     console.log('Blobs write OK:', id);

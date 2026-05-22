@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getStore } = require('@netlify/blobs');
+const { makeStore } = require('./_lib/blobs');
 
 function corsHeaders() {
   return {
@@ -37,7 +37,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = getStore('products');
+    const store = makeStore('products');
     let catalog = await store.get(SEED_KEY, { type: 'json' });
     if (!catalog || !Array.isArray(catalog) || catalog.length === 0) {
       catalog = loadSeed();

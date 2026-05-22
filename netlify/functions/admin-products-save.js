@@ -2,7 +2,7 @@
 // Auth: Authorization: Bearer <JWT>
 // Body: a complete product object — upserts (insert if new id, update if existing).
 
-const { getStore } = require('@netlify/blobs');
+const { makeStore } = require('./_lib/blobs');
 const { requireAuth, corsHeaders, jsonResponse } = require('./_lib/auth');
 
 const SEED_KEY = '_catalog';
@@ -29,7 +29,7 @@ exports.handler = async (event) => {
   product.specs = product.specs || {};
 
   try {
-    const store = getStore('products');
+    const store = makeStore('products');
     const catalog = (await store.get(SEED_KEY, { type: 'json' })) || [];
     const idx = catalog.findIndex((p) => p.id === product.id);
     if (idx >= 0) catalog[idx] = product;
