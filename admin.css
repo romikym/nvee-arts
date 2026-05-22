@@ -1297,3 +1297,210 @@ label.prod-dropzone-replace {
   flex-wrap: wrap;
   margin-left: auto;
 }
+
+/* ============================================================
+   DASHBOARD HOME — Calm command center landing page
+   ============================================================ */
+
+#panel-dashboard {
+  /* Slightly narrower than other panels so it feels centered + calm */
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* Welcome area */
+.dash-welcome {
+  text-align: center;
+  padding: 24px 0 40px;
+}
+.dash-welcome-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nvee-blue-electric);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.dash-welcome-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 12px;
+  color: var(--nvee-text);
+}
+.dash-welcome-title .italic { font-style: italic; color: var(--nvee-blue-electric); }
+.dash-welcome-sub {
+  color: #b9c2d4;
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 auto;
+  max-width: 480px;
+}
+
+/* Stat grid */
+.dash-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.dash-stat-card {
+  background:
+    linear-gradient(180deg, rgba(0, 180, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--nvee-line);
+  border-radius: 16px;
+  padding: 22px 22px 20px;
+  transition: all 0.2s ease;
+}
+.dash-stat-card:hover {
+  border-color: rgba(0, 180, 255, 0.3);
+  background:
+    linear-gradient(180deg, rgba(0, 180, 255, 0.07), rgba(255, 255, 255, 0.03));
+  transform: translateY(-1px);
+}
+.dash-stat-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nvee-text-dim);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.dash-stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--nvee-text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.dash-stat-value.has-glow { color: var(--nvee-blue-electric); }
+.dash-stat-sub {
+  font-size: 12px;
+  color: var(--nvee-text-dim);
+  margin-top: 6px;
+}
+
+/* Quick actions */
+.dash-section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: var(--nvee-text);
+}
+.dash-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.dash-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 22px 22px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--nvee-line);
+  border-radius: 14px;
+  color: var(--nvee-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dash-action:hover {
+  border-color: var(--nvee-blue);
+  background: rgba(0, 180, 255, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -10px rgba(0, 180, 255, 0.3);
+}
+.dash-action-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--nvee-blue-electric), var(--nvee-blue));
+  color: var(--nvee-black);
+}
+.dash-action-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nvee-text);
+}
+.dash-action-sub {
+  font-size: 12px;
+  color: var(--nvee-text-dim);
+  margin-top: -2px;
+}
+
+/* Activity feed */
+.dash-activity {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--nvee-line);
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+.dash-activity-empty {
+  color: var(--nvee-text-dim);
+  font-size: 14px;
+  padding: 16px 0;
+  text-align: center;
+}
+.dash-activity-list {
+  display: flex;
+  flex-direction: column;
+}
+.dash-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(0, 180, 255, 0.08);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin: 0 -8px;
+}
+.dash-activity-item:last-child { border-bottom: 0; }
+.dash-activity-item:hover {
+  background: rgba(0, 180, 255, 0.04);
+}
+.dash-activity-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--nvee-blue-electric);
+  box-shadow: 0 0 8px rgba(0, 180, 255, 0.45);
+  flex-shrink: 0;
+}
+.dash-activity-dot.muted { background: var(--nvee-text-dim); box-shadow: none; }
+.dash-activity-dot.success { background: var(--nvee-success); box-shadow: 0 0 8px rgba(74, 222, 128, 0.4); }
+.dash-activity-body { flex: 1; min-width: 0; }
+.dash-activity-text {
+  font-size: 14px;
+  color: var(--nvee-text);
+  line-height: 1.4;
+}
+.dash-activity-text strong { font-weight: 600; }
+.dash-activity-time {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--nvee-text-dim);
+  margin-top: 2px;
+  text-transform: lowercase;
+}
+
+@media (max-width: 720px) {
+  .dash-welcome { padding: 8px 0 28px; }
+  .dash-welcome-title { font-size: 32px; }
+  .dash-stats-grid { gap: 10px; }
+  .dash-stat-card { padding: 18px; }
+  .dash-stat-value { font-size: 26px; }
+}

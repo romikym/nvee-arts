@@ -68,7 +68,7 @@ function showLoginScreen() {
 function showAdminShell() {
   $('#admin-login-screen').hidden = true;
   $('#admin-shell').hidden = false;
-  switchTab('orders');
+  switchTab('dashboard');
   refreshContactBadge();
 }
 
@@ -130,15 +130,152 @@ function handleLogout() {
 
 function switchTab(name) {
   $$('.admin-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  ['orders', 'customers', 'contact', 'invoices', 'products'].forEach((t) => {
+  ['dashboard', 'orders', 'customers', 'contact', 'invoices', 'products'].forEach((t) => {
     const panel = document.getElementById('panel-' + t);
     if (panel) panel.hidden = t !== name;
   });
+  if (name === 'dashboard') loadDashboard();
   if (name === 'orders') loadOrders();
   if (name === 'customers') loadCustomers();
   if (name === 'contact') loadContact();
   if (name === 'invoices') loadInvoices();
   if (name === 'products') loadProductsAdmin();
+}
+
+// ============ DASHBOARD ============
+function fmtRelativeTime(unixSecOrIso) {
+  if (!unixSecOrIso) return '';
+  const t = typeof unixSecOrIso === 'number'
+    ? new Date(unixSecOrIso * 1000)
+    : new Date(unixSecOrIso);
+  const diffSec = (Date.now() - t.getTime()) / 1000;
+  if (diffSec < 60) return 'just now';
+  if (diffSec < 3600) return Math.floor(diffSec / 60) + 'm ago';
+  if (diffSec < 86400) return Math.floor(diffSec / 3600) + 'h ago';
+  if (diffSec < 86400 * 7) return Math.floor(diffSec / 86400) + 'd ago';
+  return t.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+async function loadDashboard() {
+  // Fetch all source data in parallel. Each is auth-gated.
+  const subEl = $('#dash-welcome-sub');
+  if (subEl) {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    subEl.innerHTML = `Today is ${dateStr}. Here's what's happening with your shop.`;
+  }
+
+  let orders = [], invoices = [], products = [], messages = [];
+  try {
+    const [ordersData, invoicesData, productsData, messagesData] = await Promise.all([
+      apiFetch('/.netlify/functions/admin-orders?limit=100').catch(() => ({ orders: [] })),
+      apiFetch('/.netlify/functions/admin-invoices-list?limit=100').catch(() => ({ invoices: [] })),
+      apiFetch('/.netlify/functions/admin-products-list').catch(() => ({ products: [] })),
+      apiFetch('/.netlify/functions/admin-contact-list').catch(() => ({ submissions: [] })),
+    ]);
+    orders = ordersData.orders || [];
+    invoices = invoicesData.invoices || [];
+    products = productsData.products || [];
+    messages = messagesData.submissions || [];
+  } catch (err) {
+    showToast('Couldn\'t load dashboard', err.message || '');
+    return;
+  }
+
+  // --- Stats ---
+  const totalRevenueCents = orders.reduce(
+    (a, o) => a + (o.amount - (o.amountRefunded || 0)),
+    0,
+  );
+  $('#dash-revenue').textContent = fmtUSD(totalRevenueCents);
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
+  const ordersThisMonth = orders.filter(o => o.created >= startOfMonth);
+  $('#dash-orders-month').textContent = ordersThisMonth.length;
+  $('#dash-orders-month-sub').textContent =
+    `${fmtUSD(ordersThisMonth.reduce((a, o) => a + o.amount, 0))} this month`;
+
+  const openInvoices = invoices.filter(i => i.status === 'open' || i.status === 'draft');
+  $('#dash-invoices-open').textContent = openInvoices.length;
+
+  const available = products.filter(p => !p.soldOut);
+  $('#dash-products-available').textContent = available.length;
+  $('#dash-products-sub').textContent = `of ${products.length} total in catalog`;
+
+  const unread = messages.filter(m => !m.read);
+  $('#dash-messages-unread').textContent = unread.length;
+  updateContactBadge(unread.length);
+
+  // --- Activity feed (combined, sorted, top 10) ---
+  const activity = [];
+  for (const o of orders.slice(0, 10)) {
+    activity.push({
+      ts: o.created,
+      kind: 'order',
+      tone: o.refunded ? 'muted' : 'success',
+      text: o.refunded
+        ? `Order <strong>refunded</strong> · ${fmtUSD(o.amount)}`
+        : `Order paid · ${fmtUSD(o.amount)}${o.customerName ? ' from ' + escapeHtml(o.customerName) : ''}`,
+      tab: 'orders',
+    });
+  }
+  for (const inv of invoices.slice(0, 10)) {
+    const verb = inv.status === 'paid' ? 'paid' : inv.status === 'open' ? 'sent' : inv.status;
+    activity.push({
+      ts: inv.created,
+      kind: 'invoice',
+      tone: inv.status === 'paid' ? 'success' : 'default',
+      text: `Invoice <strong>${escapeHtml(inv.number)}</strong> ${verb}${inv.customerEmail ? ' · ' + escapeHtml(inv.customerEmail) : ''}`,
+      tab: 'invoices',
+    });
+  }
+  for (const m of messages.slice(0, 10)) {
+    const ts = m.createdAt ? Math.floor(new Date(m.createdAt).getTime() / 1000) : 0;
+    activity.push({
+      ts,
+      kind: 'message',
+      tone: m.read ? 'muted' : 'default',
+      text: `New message from <strong>${escapeHtml(m.name || m.email)}</strong>${m.topicLabel ? ' · ' + escapeHtml(m.topicLabel) : ''}`,
+      tab: 'contact',
+    });
+  }
+  activity.sort((a, b) => b.ts - a.ts);
+  const top = activity.slice(0, 8);
+
+  const list = $('#dash-activity-list');
+  const empty = $('#dash-activity-empty');
+  if (top.length === 0) {
+    list.innerHTML = '';
+    empty.hidden = false;
+  } else {
+    empty.hidden = true;
+    list.innerHTML = top.map(a => `
+      <div class="dash-activity-item" data-quick-action="${a.tab}">
+        <div class="dash-activity-dot ${a.tone}"></div>
+        <div class="dash-activity-body">
+          <div class="dash-activity-text">${a.text}</div>
+          <div class="dash-activity-time">${fmtRelativeTime(a.ts)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+// Quick-action button + activity-item click delegate
+function handleQuickAction(e) {
+  const el = e.target.closest('[data-quick-action]');
+  if (!el) return;
+  const action = el.dataset.quickAction;
+  if (action === 'products-new') {
+    switchTab('products');
+    setTimeout(() => openProductModal('new', null), 80);
+  } else if (action === 'invoices-new') {
+    switchTab('invoices');
+    setTimeout(() => toggleNewInvoiceCard(true), 80);
+  } else if (action === 'orders' || action === 'contact' || action === 'invoices' || action === 'products') {
+    switchTab(action);
+  }
 }
 
 // ============ ORDERS ============
@@ -954,6 +1091,8 @@ async function handleProductFormSubmit(e) {
 }
 
 // Filter / sort / search toolbar event handlers
+
+// Filter / sort / search toolbar event handlers
 function wireProductToolbar() {
   document.querySelectorAll('[data-pfilter-status]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -985,9 +1124,7 @@ function wireProductToolbar() {
   }
 }
 
-// New: wire up the product modal's auto-slug, dropzone, and advanced toggle
 function wireProductModal() {
-  // Auto-slug from name (only until user manually edits the slug)
   const nameEl = $('#prod-name');
   if (nameEl) {
     nameEl.addEventListener('input', () => {
@@ -997,7 +1134,6 @@ function wireProductModal() {
       setSlugDisplay(newSlug, false);
     });
   }
-  // Edit slug button → prompt for custom slug
   const editSlug = $('#prod-edit-slug');
   if (editSlug) {
     editSlug.addEventListener('click', () => {
@@ -1011,8 +1147,6 @@ function wireProductModal() {
       slugEditedManually = true;
     });
   }
-
-  // Advanced section toggle
   const advToggle = $('#prod-advanced-toggle');
   if (advToggle) {
     advToggle.addEventListener('click', () => {
@@ -1023,10 +1157,6 @@ function wireProductModal() {
       advToggle.classList.toggle('open', open);
     });
   }
-
-  // File input — the empty state and "Replace photo" element are <label for="prod-file">
-  // elements, so clicking them natively opens the file picker. We only need to
-  // listen for the change event to handle the selected file.
   const fileInput = $('#prod-file');
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
@@ -1034,21 +1164,17 @@ function wireProductModal() {
       if (file) uploadSelectedFile(file);
     });
   }
-
-  // Drag-and-drop on the dropzone
   const dropzone = $('#prod-dropzone');
   if (dropzone) {
     ['dragenter', 'dragover'].forEach(evt => {
       dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         dropzone.classList.add('dragging');
       });
     });
     ['dragleave', 'drop'].forEach(evt => {
       dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         if (evt === 'dragleave' && e.target !== dropzone) return;
         dropzone.classList.remove('dragging');
       });
@@ -1065,6 +1191,10 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#admin-login-form').addEventListener('submit', handleLogin);
   $('#admin-logout').addEventListener('click', handleLogout);
   $$('.admin-tab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  // Dashboard quick actions + activity items
+  const dashPanel = document.getElementById('panel-dashboard');
+  if (dashPanel) dashPanel.addEventListener('click', handleQuickAction);
 
   // Invoices
   $('#open-new-invoice').addEventListener('click', () => toggleNewInvoiceCard(true));
