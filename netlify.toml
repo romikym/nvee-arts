@@ -14,6 +14,10 @@
   # Include products.json in the function bundle so the function can
   # validate prices server-side.
   included_files = ["data/products.json"]
+  # @netlify/blobs MUST stay external — esbuild bundles strip out the
+  # runtime context that Blobs needs to auto-detect the site, which
+  # causes "MissingBlobsEnvironmentError" at runtime.
+  external_node_modules = ["@netlify/blobs"]
 
 # Tidy URL for the checkout endpoint (optional — the default
 # /.netlify/functions/create-checkout-session also works).

@@ -5,7 +5,6 @@
 // forwards to Web3Forms so Veronica still gets the email notification.
 
 const crypto = require('crypto');
-const { getStore } = require('@netlify/blobs');
 
 const WEB3FORMS_URL = 'https://api.web3forms.com/submit';
 
@@ -36,22 +35,15 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return jsonResponse(400, { error: 'Invalid JSON' }); }
 
-  // Honeypot — bots fill the `botcheck` field, silently accept and drop.
   if (body.botcheck) return jsonResponse(200, { success: true });
 
   const name = (body.name || '').trim();
   const email = (body.email || '').trim();
   const topic = (body.topic || 'general').trim();
   const message = (body.message || '').trim();
-  if (!name || !email || !message) {
-    return jsonResponse(400, { error: 'Name, email, and message are required' });
-  }
-  if (message.length < 10) {
-    return jsonResponse(400, { error: 'Message is too short' });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return jsonResponse(400, { error: 'Invalid email' });
-  }
+  if (!name || !email || !message) return jsonResponse(400, { error: 'Name, email, and message are required' });
+  if (message.length < 10) return jsonResponse(400, { error: 'Message is too short' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonResponse(400, { error: 'Invalid email' });
 
   const topicLabel = TOPIC_LABELS[topic] || topic;
   const id = 'sub_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
@@ -71,25 +63,34 @@ exports.handler = async (event) => {
     userAgent: event.headers['user-agent'] || '',
   };
 
-  // 1. Store in Blobs
+  // 1. Store in Blobs — capture any error so we can see it from the client.
+  let storedOk = false;
+  let storedError = null;
+  let blobsModuleLoaded = false;
   try {
-    const store = getStore('contact-submissions');
+    // Lazy-require so a missing module doesn't crash the whole function.
+    const blobs = require('@netlify/blobs');
+    blobsModuleLoaded = true;
+    const store = blobs.getStore('contact-submissions');
     await store.setJSON(id, submission);
+    storedOk = true;
+    console.log('Blobs write OK:', id);
   } catch (err) {
-    console.error('Blobs write failed:', err);
-    // Don't fail the user-facing submit if storage fails — email still goes through.
+    storedError = (err && (err.message || err.toString())) || 'unknown blobs error';
+    console.error('Blobs write failed:', storedError, err && err.stack);
   }
 
-  // 2. Forward to Web3Forms for email delivery
+  // 2. Forward to Web3Forms
   const web3formsKey = process.env.WEB3FORMS_ACCESS_KEY;
+  let emailedOk = false;
+  let emailedError = null;
   if (web3formsKey) {
     try {
       const w3Payload = {
         access_key: web3formsKey,
         subject: `[NVee Arts · ${topicLabel}] ${name}`,
         from_name: `${name} (via NVee Arts site)`,
-        name,
-        email,
+        name, email,
         topic: topicLabel,
         phone: submission.phone,
         budget: submission.budget,
@@ -102,13 +103,25 @@ exports.handler = async (event) => {
         body: JSON.stringify(w3Payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        console.error('Web3Forms forward failed:', data);
-      }
+      emailedOk = !!(res.ok && data.success);
+      if (!emailedOk) emailedError = data.message || `HTTP ${res.status}`;
     } catch (err) {
-      console.error('Web3Forms forward error:', err);
+      emailedError = err.message || 'web3forms error';
     }
+  } else {
+    emailedError = 'WEB3FORMS_ACCESS_KEY env var missing';
   }
 
-  return jsonResponse(200, { success: true, id });
+  // Surface debug info so we can see what's happening from the browser.
+  return jsonResponse(200, {
+    success: true,
+    id,
+    debug: {
+      blobsModuleLoaded,
+      storedOk,
+      storedError,
+      emailedOk,
+      emailedError,
+    },
+  });
 };
