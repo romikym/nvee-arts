@@ -548,7 +548,13 @@
     flex-wrap: wrap;
     padding: 14px 18px;
   }
-  .admin-t
+  .admin-tabs { order: 3; width: 100%; justify-content: center; }
+  .admin-main { padding: 24px 18px 60px; }
+  .admin-title { font-size: 32px; }
+  .admin-order-body { grid-template-columns: 1fr; }
+  .admin-form .field-row { grid-template-columns: 1fr; }
+}
+
 /* ============ ADMIN — Contact messages + Products UI ============ */
 
 /* Unread count badge on the Messages tab */
@@ -1004,6 +1010,15 @@
   }
   .admin-product-actions-row {
     grid-column: 1 / -1;
+    border-top: 1px solid var(--nvee-line);
+    padding-top: 10px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .admin-toolbar-search input[type="search"] { min-width: 0; flex: 1; }
+  .admin-toolbar-search { width: 100%; margin-left: 0; }
+}
+;
     border-top: 1px solid var(--nvee-line);
     padding-top: 10px;
     margin-top: 4px;
