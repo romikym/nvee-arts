@@ -10,6 +10,11 @@
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* The HTML [hidden] attribute normally sets display:none, but explicit
+   display: flex / grid declarations override it. Force it back so the
+   admin shell and login screen actually hide when toggled. */
+[hidden] { display: none !important; }
+
 /* ============ LOGIN SCREEN ============ */
 .admin-login-screen {
   min-height: 100vh;
