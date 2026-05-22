@@ -525,7 +525,7 @@ function renderInvoiceCard(inv) {
     actions.push(`<button class="btn btn-ghost btn-sm" data-inv-action="send" data-inv-id="${escapeHtml(inv.id)}">Finalize + send</button>`);
     actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="delete" data-inv-id="${escapeHtml(inv.id)}">Delete</button>`);
   } else if (inv.status === 'open') {
-    actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="void" data-inv-id="${escapeHtml(inv.id)}">Void</button>`);
+    actions.push(`<button class="btn btn-ghost btn-sm admin-danger" data-inv-action="void" data-inv-id="${escapeHtml(inv.id)}">Delete</button>`);
   } else if (inv.status === 'paid') {
     actions.push(`<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com/test/invoices/${escapeHtml(inv.id)}" target="_blank" rel="noopener">Refund in Stripe ↗</a>`);
   }
@@ -679,12 +679,12 @@ async function handleInvoicesAction(e) {
       showToast('Draft deleted');
       loadInvoices();
     } else if (action === 'void') {
-      if (!confirm(`Void open invoice ${inv.number}? The customer won't be able to pay it.`)) return;
+      if (!confirm(`Delete invoice ${inv.number}?\n\nIt will be voided in Stripe and the customer can no longer pay it. This can't be undone.`)) return;
       await apiFetch('/.netlify/functions/admin-invoices-delete', {
         method: 'POST',
         body: JSON.stringify({ id }),
       });
-      showToast('Invoice voided');
+      showToast('Invoice deleted');
       loadInvoices();
     } else if (action === 'send') {
       // Finalize + send a draft. We re-use the create endpoint logic via a quick update:
@@ -1226,7 +1226,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (getToken()) {
     showAdminShell();
   } else {
-    showLoginScreen();
     setTimeout(() => $('#admin-pw').focus(), 100);
   }
 });
