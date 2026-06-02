@@ -629,7 +629,7 @@ async function init() {
         showSuccessCard();
       } catch (err) {
         console.error('Contact form submit failed:', err);
-        showToast('Could not send', 'Please try again or email Veronica directly.');
+        showToast('Could not send', 'Please try again or email Vee directly.');
         btn.disabled = false;
         btn.classList.remove('loading');
       }
