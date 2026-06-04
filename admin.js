@@ -1052,6 +1052,52 @@ function showImagePreview(url) {
   }
 }
 
+// Shrink a large image client-side before upload so it fits under Netlify's
+// 6 MB request payload limit (and just to keep the catalog snappy). Anything
+// already under 600 KB is returned as-is so small images aren't recompressed.
+// Output is JPEG so we get predictable size; transparency is lost intentionally.
+async function compressImage(file, maxLongEdge = 1600, quality = 0.85) {
+  if (!file.type || !file.type.startsWith('image/')) return file;
+  if (file.size < 600 * 1024) return file;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      const longEdge = Math.max(width, height);
+      if (longEdge > maxLongEdge) {
+        const scale = maxLongEdge / longEdge;
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // White background so JPEG conversion doesn't show black where there was transparency
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error('Image compression returned no data'));
+          const baseName = (file.name || 'photo').replace(/\.\w+$/, '');
+          const out = new File([blob], baseName + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+          resolve(out);
+        },
+        'image/jpeg',
+        quality,
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not load image for compression'));
+    };
+    img.src = url;
+  });
+}
+
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1079,8 +1125,8 @@ async function uploadSelectedFile(file) {
     showFormError(`That file isn't a photo (type: ${file.type || 'unknown'}). Try a JPEG, PNG, or WebP image.`);
     return;
   }
-  if (file.size > 8 * 1024 * 1024) {
-    showFormError(`Photo is too large (${(file.size/1024/1024).toFixed(1)} MB). Max is 8 MB — try resizing.`);
+  if (file.size > 15 * 1024 * 1024) {
+    showFormError(`Photo is too large (${(file.size/1024/1024).toFixed(1)} MB). Max is 15 MB.`);
     return;
   }
 
@@ -1089,15 +1135,31 @@ async function uploadSelectedFile(file) {
   $('#prod-dropzone-uploading').hidden = false;
 
   try {
+    console.log('[upload] original size:', file.size, 'type:', file.type);
+    let toSend = file;
+    try {
+      toSend = await compressImage(file);
+      if (toSend !== file) {
+        console.log('[upload] compressed:', file.size, '→', toSend.size, 'bytes');
+      } else {
+        console.log('[upload] no compression needed');
+      }
+    } catch (compErr) {
+      console.warn('[upload] compression failed, sending original:', compErr.message);
+      toSend = file;
+    }
     console.log('[upload] reading file as base64…');
-    const base64 = await readFileAsBase64(file);
+    const base64 = await readFileAsBase64(toSend);
     console.log('[upload] base64 length:', base64.length);
+    if (base64.length > 5.5 * 1024 * 1024) {
+      throw new Error('Photo is still too large after compression — try a smaller original.');
+    }
     console.log('[upload] POSTing to /.netlify/functions/admin-image-upload …');
     const data = await apiFetch('/.netlify/functions/admin-image-upload', {
       method: 'POST',
       body: JSON.stringify({
-        name: file.name,
-        contentType: file.type,
+        name: toSend.name,
+        contentType: toSend.type,
         base64,
       }),
     });
